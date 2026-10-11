@@ -61,7 +61,7 @@ describe('db package and Prisma schema contract suite', () => {
     expect(modelNames).toContain('AuditLog');
   });
 
-  describe('Model Relationships and Field Invariants', () => {
+  describe('Model Relationships and Referential Deletion Invariants', () => {
     const dmmf = Prisma.dmmf;
 
     it('enforces cascade deletion on Project-owned resources', () => {
@@ -82,6 +82,19 @@ describe('db package and Prisma schema contract suite', () => {
       expect(suiteProjRel?.relationOnDelete).toBe('Cascade');
     });
 
+    it('preserves AuditLog records when a Project or User is deleted (ADR-0004 retention policy)', () => {
+      const auditLogModel = dmmf.datamodel.models.find((m) => m.name === 'AuditLog');
+      expect(auditLogModel).toBeDefined();
+
+      const projectRel = auditLogModel?.fields.find((f) => f.name === 'project');
+      expect(projectRel?.relationOnDelete).toBe('SetNull');
+      expect(auditLogModel?.fields.find((f) => f.name === 'projectId')?.isRequired).toBe(false);
+
+      const userRel = auditLogModel?.fields.find((f) => f.name === 'user');
+      expect(userRel?.relationOnDelete).toBe('SetNull');
+      expect(auditLogModel?.fields.find((f) => f.name === 'userId')?.isRequired).toBe(false);
+    });
+
     it('enforces unique constraints for membership and environment naming', () => {
       const projectMember = dmmf.datamodel.models.find((m) => m.name === 'ProjectMember');
       expect(projectMember?.uniqueFields).toContainEqual(['projectId', 'userId']);
@@ -93,7 +106,7 @@ describe('db package and Prisma schema contract suite', () => {
       expect(envVarModel?.uniqueFields).toContainEqual(['environmentId', 'key']);
     });
 
-    it('supports secret encryption fields in EnvironmentVariable', () => {
+    it('supports authenticated secret encryption fields in EnvironmentVariable (ADR-0005)', () => {
       const envVarModel = dmmf.datamodel.models.find((m) => m.name === 'EnvironmentVariable');
       const fields = envVarModel?.fields.map((f) => f.name);
       expect(fields).toContain('value');
@@ -102,17 +115,20 @@ describe('db package and Prisma schema contract suite', () => {
       expect(fields).toContain('secretAuthTag');
     });
 
-    it('maintains explicit baseline history model for historical snapshots', () => {
-      const baselineHistory = dmmf.datamodel.models.find(
-        (m) => m.name === 'FixtureBaselineHistory'
-      );
-      expect(baselineHistory).toBeDefined();
-      const fields = baselineHistory?.fields.map((f) => f.name);
-      expect(fields).toContain('fixtureId');
-      expect(fields).toContain('statusCode');
-      expect(fields).toContain('headers');
-      expect(fields).toContain('body');
-      expect(fields).toContain('createdAt');
+    it('links ReplayRun directly to exact historical baseline snapshot and preserves SuiteRun configuration', () => {
+      const replayRunModel = dmmf.datamodel.models.find((m) => m.name === 'ReplayRun');
+      expect(replayRunModel).toBeDefined();
+
+      // Explicit baseline snapshot foreign key
+      const baselineField = replayRunModel?.fields.find((f) => f.name === 'baseline');
+      expect(baselineField).toBeDefined();
+      expect(baselineField?.relationOnDelete).toBe('SetNull');
+      expect(replayRunModel?.fields.find((f) => f.name === 'baselineId')?.isRequired).toBe(false);
+
+      // SuiteRun snapshot for historical reproducibility
+      const suiteRunModel = dmmf.datamodel.models.find((m) => m.name === 'SuiteRun');
+      expect(suiteRunModel).toBeDefined();
+      expect(suiteRunModel?.fields.find((f) => f.name === 'suiteSnapshot')).toBeDefined();
     });
   });
 });

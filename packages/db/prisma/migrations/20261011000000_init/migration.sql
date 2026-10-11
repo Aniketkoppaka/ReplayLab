@@ -178,6 +178,7 @@ CREATE TABLE "replay_runs" (
     "fixtureId" TEXT NOT NULL,
     "environmentId" TEXT NOT NULL,
     "suiteRunId" TEXT,
+    "baselineId" TEXT,
     "triggeredById" TEXT,
     "status" "ReplayOutcomeStatus" NOT NULL,
     "httpStatusCode" INTEGER,
@@ -205,6 +206,7 @@ CREATE TABLE "suite_runs" (
     "passedItems" INTEGER NOT NULL DEFAULT 0,
     "failedItems" INTEGER NOT NULL DEFAULT 0,
     "durationMs" INTEGER NOT NULL DEFAULT 0,
+    "suiteSnapshot" JSONB,
     "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "completedAt" TIMESTAMP(3),
 
@@ -214,7 +216,7 @@ CREATE TABLE "suite_runs" (
 -- CreateTable
 CREATE TABLE "audit_logs" (
     "id" TEXT NOT NULL,
-    "projectId" TEXT NOT NULL,
+    "projectId" TEXT,
     "userId" TEXT,
     "action" TEXT NOT NULL,
     "targetType" TEXT NOT NULL,
@@ -294,6 +296,9 @@ CREATE INDEX "replay_runs_environmentId_idx" ON "replay_runs"("environmentId");
 CREATE INDEX "replay_runs_suiteRunId_idx" ON "replay_runs"("suiteRunId");
 
 -- CreateIndex
+CREATE INDEX "replay_runs_baselineId_idx" ON "replay_runs"("baselineId");
+
+-- CreateIndex
 CREATE INDEX "suite_runs_projectId_startedAt_idx" ON "suite_runs"("projectId", "startedAt");
 
 -- CreateIndex
@@ -354,6 +359,9 @@ ALTER TABLE "replay_runs" ADD CONSTRAINT "replay_runs_environmentId_fkey" FOREIG
 ALTER TABLE "replay_runs" ADD CONSTRAINT "replay_runs_suiteRunId_fkey" FOREIGN KEY ("suiteRunId") REFERENCES "suite_runs"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "replay_runs" ADD CONSTRAINT "replay_runs_baselineId_fkey" FOREIGN KEY ("baselineId") REFERENCES "fixture_baseline_history"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "replay_runs" ADD CONSTRAINT "replay_runs_triggeredById_fkey" FOREIGN KEY ("triggeredById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -369,7 +377,7 @@ ALTER TABLE "suite_runs" ADD CONSTRAINT "suite_runs_environmentId_fkey" FOREIGN 
 ALTER TABLE "suite_runs" ADD CONSTRAINT "suite_runs_triggeredById_fkey" FOREIGN KEY ("triggeredById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "projects"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "projects"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
