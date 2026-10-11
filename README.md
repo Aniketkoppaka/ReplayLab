@@ -6,11 +6,11 @@ ReplayLab is an enterprise-grade full-stack API debugging, regression-testing, a
 
 This repository is organized as a TypeScript monorepo using `pnpm` workspaces:
 
-- `apps/web`: Next.js frontend (React, Tailwind CSS, shadcn/ui) designed for deployment to Vercel.
+- `apps/web`: Next.js frontend (React 19, Tailwind CSS, shadcn/ui) designed for deployment to Vercel.
 - `apps/api`: Express backend and persistent Replay Engine designed for containerized Node.js hosting.
 - `packages/contracts`: Shared TypeScript domain models, DTOs, and Zod validation schemas.
 - `packages/db`: Centralized Prisma schema, migrations, and database client exports for Supabase (PostgreSQL).
-- `packages/config`: Shared tooling configurations (TypeScript, ESLint).
+- `packages/config`: Shared tooling configurations.
 - `infra/database`: Local database operational configs and seed data.
 - `infra/demo-api`: Deterministic mock API for integration and replay safety testing.
 - `docs/`: Product specs, architecture decision records (ADRs), threat model, and test plans.
@@ -18,22 +18,24 @@ This repository is organized as a TypeScript monorepo using `pnpm` workspaces:
 
 ## Prerequisites
 
-- **Node.js**: `>= 20.0.0` (LTS recommended)
-- **Package Manager**: `pnpm` (managed via Corepack, pinned to `9.15.5`)
+- **Node.js**: `24.x` (LTS; see `.nvmrc`) or `22.x`
+- **Package Manager**: `pnpm@9.15.5` (managed via Corepack)
 - **Docker**: For local database and demo API services
 
-## Quick Start (Workspace Scaffolding)
+## Quick Start (Development Setup)
 
 ```bash
 # Enable pnpm via Corepack
 corepack enable pnpm
 
-# Install workspace dependencies (when initialized)
-corepack pnpm install
+# Install workspace dependencies (reproducible via pnpm-lock.yaml)
+corepack pnpm install --frozen-lockfile
 
-# Run workspace checks
+# Run quality gates across all workspaces
+corepack pnpm lint
 corepack pnpm typecheck
 corepack pnpm test
+corepack pnpm build
 ```
 
 ## Security & Guidelines

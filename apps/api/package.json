@@ -2,13 +2,27 @@
   "name": "@replaylab/api",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "lint": "echo '@replaylab/api: lint placeholder'",
+    "lint": "eslint src/ --max-warnings 0",
     "typecheck": "tsc --noEmit",
-    "test": "echo '@replaylab/api: test placeholder'"
+    "test": "vitest run",
+    "clean": "rimraf dist"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "dependencies": {
+    "@replaylab/contracts": "workspace:*",
+    "@replaylab/db": "workspace:*",
+    "express": "^4.21.2",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.4",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
 }

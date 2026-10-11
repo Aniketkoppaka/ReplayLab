@@ -18,7 +18,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22.x
+          node-version: 24.x
 
       - name: Setup Corepack
         run: corepack enable
@@ -26,5 +26,17 @@ jobs:
       - name: Verify pnpm version
         run: corepack pnpm --version
 
-      - name: Verify Monorepo Workspace
-        run: corepack pnpm -r exec node -e "console.log(process.cwd())"
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Lint workspace
+        run: corepack pnpm lint
+
+      - name: Typecheck workspace
+        run: corepack pnpm typecheck
+
+      - name: Test workspace
+        run: corepack pnpm test
+
+      - name: Build workspace
+        run: corepack pnpm build
