@@ -52,10 +52,13 @@ export async function validateAndResolveTarget(
   }
 
   // 3. Path Combining & Prevention of Arbitrary Absolute URL Override
-  // If the fixture path contains an absolute URL (e.g. "http://evil.com/"),
-  // verify it does not override or escape the base URL origin.
+  // Reject protocol-relative URLs (e.g. "//evil.com/path")
   let combinedUrl: URL;
   const trimmedPath = pathStr.trim();
+
+  if (trimmedPath.startsWith('//')) {
+    throw new Error('SSRF_INVALID_URL: Protocol-relative paths are forbidden');
+  }
 
   if (trimmedPath.startsWith('http://') || trimmedPath.startsWith('https://')) {
     try {
@@ -80,7 +83,20 @@ export async function validateAndResolveTarget(
     }
   }
 
+  // Ensure resolved URL does not contain credentials
+  if (combinedUrl.username || combinedUrl.password) {
+    throw new Error('SSRF_URL_CREDENTIALS: URL credentials are not permitted');
+  }
+
+  // Ensure origin still matches baseUrl origin (e.g. against parser discrepancies)
+  if (combinedUrl.origin !== baseUrl.origin) {
+    throw new Error('SSRF_ORIGIN_MISMATCH: Destination origin does not match base URL origin');
+  }
+
   const hostname = combinedUrl.hostname;
+  if (!hostname || hostname.length === 0) {
+    throw new Error('SSRF_INVALID_URL: Missing target hostname');
+  }
 
   // 4. Resolve DNS & Validate All IPs
   let resolvedAddresses: Array<{ address: string; family: number }>;

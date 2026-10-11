@@ -31,6 +31,10 @@ export function evaluateJsonPath(
   let current: unknown = obj;
 
   for (const token of tokens) {
+    if (token === '__proto__' || token === 'constructor' || token === 'prototype') {
+      return { exists: false };
+    }
+
     if (current == null || typeof current !== 'object') {
       return { exists: false };
     }
@@ -43,7 +47,7 @@ export function evaluateJsonPath(
       current = current[idx];
     } else {
       const record = current as Record<string, unknown>;
-      if (!(token in record)) {
+      if (!Object.prototype.hasOwnProperty.call(record, token)) {
         return { exists: false };
       }
       current = record[token];
@@ -70,6 +74,7 @@ export interface DiffResult {
   differences: DiffDifference[];
 }
 
+export const MAX_DIFF_DIFFERENCES = 500;
 
 /**
  * Checks if a path matches an IGNORE mask rule.
@@ -93,6 +98,7 @@ function isPathIgnored(path: string, maskRules: MaskRule[]): boolean {
 
 /**
  * Recursively computes semantic structural differences between expected baseline and actual response.
+ * Enforces key sorting for deterministic order and bounds differences to MAX_DIFF_DIFFERENCES (500).
  */
 export function compareJsonPayloads(
   expected: unknown,
@@ -101,6 +107,12 @@ export function compareJsonPayloads(
   currentPath = '$'
 ): DiffResult {
   const differences: DiffDifference[] = [];
+
+  function appendDiff(diff: DiffDifference) {
+    if (differences.length < MAX_DIFF_DIFFERENCES) {
+      differences.push(diff);
+    }
+  }
 
   // Check if current path is ignored
   if (isPathIgnored(currentPath, maskRules)) {
@@ -115,6 +127,32 @@ export function compareJsonPayloads(
   );
 
   if (typeRule) {
+    // Both undefined or missing
+    if (expected === undefined && actual === undefined) {
+      return { match: true, differences: [] };
+    }
+    // Null handling
+    if (expected === null && actual === null) {
+      return { match: true, differences: [] };
+    }
+    if ((expected === null && actual !== null) || (expected !== null && actual === null)) {
+      differences.push({
+        path: currentPath,
+        type: 'TYPE_MISMATCH',
+        expected: expected === null ? 'type:null' : `type:${typeof expected}`,
+        actual: actual === null ? 'type:null' : `type:${typeof actual}`,
+      });
+      return { match: false, differences };
+    }
+    if (Array.isArray(expected) !== Array.isArray(actual)) {
+      differences.push({
+        path: currentPath,
+        type: 'TYPE_MISMATCH',
+        expected: Array.isArray(expected) ? 'type:array' : `type:${typeof expected}`,
+        actual: Array.isArray(actual) ? 'type:array' : `type:${typeof actual}`,
+      });
+      return { match: false, differences };
+    }
     if (typeof expected !== typeof actual) {
       differences.push({
         path: currentPath,
@@ -128,13 +166,13 @@ export function compareJsonPayloads(
     return { match: true, differences: [] };
   }
 
-  // Both null or identical primitives
+  // Both null, both undefined, or identical primitives
   if (expected === actual) {
     return { match: true, differences: [] };
   }
 
-  // Type change
-  if (typeof expected !== typeof actual || expected == null || actual == null) {
+  // Explicit null vs non-null or differing primitives
+  if (expected === null || actual === null || typeof expected !== typeof actual) {
     differences.push({
       path: currentPath,
       type: 'CHANGED',
@@ -148,10 +186,11 @@ export function compareJsonPayloads(
   if (Array.isArray(expected) && Array.isArray(actual)) {
     const maxLen = Math.max(expected.length, actual.length);
     for (let i = 0; i < maxLen; i++) {
+      if (differences.length >= MAX_DIFF_DIFFERENCES) break;
       const elemPath = `${currentPath}[${i}]`;
       if (i >= expected.length) {
         if (!isPathIgnored(elemPath, maskRules)) {
-          differences.push({
+          appendDiff({
             path: elemPath,
             type: 'ADDED',
             actual: actual[i],
@@ -159,7 +198,7 @@ export function compareJsonPayloads(
         }
       } else if (i >= actual.length) {
         if (!isPathIgnored(elemPath, maskRules)) {
-          differences.push({
+          appendDiff({
             path: elemPath,
             type: 'REMOVED',
             expected: expected[i],
@@ -167,7 +206,10 @@ export function compareJsonPayloads(
         }
       } else {
         const subDiff = compareJsonPayloads(expected[i], actual[i], maskRules, elemPath);
-        differences.push(...subDiff.differences);
+        for (const d of subDiff.differences) {
+          appendDiff(d);
+          if (differences.length >= MAX_DIFF_DIFFERENCES) break;
+        }
       }
     }
 
@@ -182,29 +224,39 @@ export function compareJsonPayloads(
     const expObj = expected as Record<string, unknown>;
     const actObj = actual as Record<string, unknown>;
 
-    const allKeys = Array.from(new Set([...Object.keys(expObj), ...Object.keys(actObj)]));
+    // Deterministic sorted keys
+    const allKeys = Array.from(new Set([...Object.keys(expObj), ...Object.keys(actObj)])).sort();
 
     for (const key of allKeys) {
+      if (differences.length >= MAX_DIFF_DIFFERENCES) break;
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+
       const fieldPath = currentPath === '$' ? `$.${key}` : `${currentPath}.${key}`;
       if (isPathIgnored(fieldPath, maskRules)) {
         continue;
       }
 
-      if (!(key in actObj)) {
-        differences.push({
+      const hasAct = Object.prototype.hasOwnProperty.call(actObj, key);
+      const hasExp = Object.prototype.hasOwnProperty.call(expObj, key);
+
+      if (!hasAct) {
+        appendDiff({
           path: fieldPath,
           type: 'REMOVED',
           expected: expObj[key],
         });
-      } else if (!(key in expObj)) {
-        differences.push({
+      } else if (!hasExp) {
+        appendDiff({
           path: fieldPath,
           type: 'ADDED',
           actual: actObj[key],
         });
       } else {
         const subDiff = compareJsonPayloads(expObj[key], actObj[key], maskRules, fieldPath);
-        differences.push(...subDiff.differences);
+        for (const d of subDiff.differences) {
+          appendDiff(d);
+          if (differences.length >= MAX_DIFF_DIFFERENCES) break;
+        }
       }
     }
 
@@ -215,7 +267,7 @@ export function compareJsonPayloads(
   }
 
   // Differing primitives
-  differences.push({
+  appendDiff({
     path: currentPath,
     type: 'CHANGED',
     expected,

@@ -38,10 +38,12 @@ export interface EncryptedSecretPayload {
 /**
  * Encrypts a plaintext secret using AES-256-GCM.
  * Generates a unique 12-byte IV per encryption operation.
+ * Optionally binds ciphertext to context via Associated Authenticated Data (AAD).
  */
 export function encryptSecret(
   plaintext: string,
-  keyInput?: string | Buffer
+  keyInput?: string | Buffer,
+  aad?: string | Buffer
 ): EncryptedSecretPayload {
   const key = Buffer.isBuffer(keyInput)
     ? keyInput
@@ -49,6 +51,11 @@ export function encryptSecret(
 
   const iv = crypto.randomBytes(12); // Recommended IV size for GCM
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+
+  if (aad) {
+    const aadBuf = Buffer.isBuffer(aad) ? aad : Buffer.from(aad, 'utf8');
+    cipher.setAAD(aadBuf);
+  }
 
   let ciphertext = cipher.update(plaintext, 'utf8', 'base64');
   ciphertext += cipher.final('base64');
@@ -63,11 +70,12 @@ export function encryptSecret(
 
 /**
  * Decrypts an AES-256-GCM encrypted secret.
- * FAILS CLOSED on any tampering, bad auth tag, or invalid key.
+ * FAILS CLOSED on any tampering, bad auth tag, wrong AAD, or invalid key.
  */
 export function decryptSecret(
   payload: { ciphertext: string; iv: string; authTag: string },
-  keyInput?: string | Buffer
+  keyInput?: string | Buffer,
+  aad?: string | Buffer
 ): string {
   try {
     const key = Buffer.isBuffer(keyInput)
@@ -79,6 +87,11 @@ export function decryptSecret(
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
 
     decipher.setAuthTag(authTag);
+
+    if (aad) {
+      const aadBuf = Buffer.isBuffer(aad) ? aad : Buffer.from(aad, 'utf8');
+      decipher.setAAD(aadBuf);
+    }
 
     let decrypted = decipher.update(payload.ciphertext, 'base64', 'utf8');
     decrypted += decipher.final('utf8');

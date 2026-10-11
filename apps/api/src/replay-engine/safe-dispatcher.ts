@@ -1,6 +1,7 @@
 import http from 'node:http';
 import https from 'node:https';
 import net from 'node:net';
+import zlib from 'node:zlib';
 import { validateAndResolveTarget, type DnsLookupFn, defaultDnsLookup } from './target-validator.js';
 
 export interface DispatchOptions {
@@ -101,6 +102,8 @@ export async function executeSafeRequest(
     Host: requestUrl.hostname,
   };
 
+  const MAX_REQUEST_PAYLOAD_BYTES = 10 * 1024 * 1024; // 10MB limit
+
   if (options.body != null && options.bodyType !== 'NONE') {
     if (options.bodyType === 'JSON' || typeof options.body === 'object') {
       const jsonStr = JSON.stringify(options.body);
@@ -113,6 +116,10 @@ export async function executeSafeRequest(
       if (!headers['Content-Type'] && !headers['content-type']) {
         headers['Content-Type'] = 'text/plain';
       }
+    }
+
+    if (payloadBuffer.length > MAX_REQUEST_PAYLOAD_BYTES) {
+      throw new Error('PAYLOAD_LIMIT_EXCEEDED: Outbound request body exceeds maximum limit (10MB)');
     }
     headers['Content-Length'] = String(payloadBuffer.length);
   }
@@ -184,24 +191,41 @@ export async function executeSafeRequest(
           }
         }
 
+        // Handle decompression if Content-Encoding is gzip, deflate, or br
+        const contentEncoding = (res.headers['content-encoding'] ?? '').toLowerCase().trim();
+        let stream: NodeJS.ReadableStream = res;
+        let decompressor: zlib.Gunzip | zlib.Inflate | zlib.BrotliDecompress | null = null;
+
+        if (contentEncoding === 'gzip') {
+          decompressor = zlib.createGunzip();
+          stream = res.pipe(decompressor);
+        } else if (contentEncoding === 'deflate') {
+          decompressor = zlib.createInflate();
+          stream = res.pipe(decompressor);
+        } else if (contentEncoding === 'br') {
+          decompressor = zlib.createBrotliDecompress();
+          stream = res.pipe(decompressor);
+        }
+
         const chunks: Buffer[] = [];
         let totalBytes = 0;
 
-        res.on('data', (chunk: Buffer) => {
+        stream.on('data', (chunk: Buffer) => {
           totalBytes += chunk.length;
           if (totalBytes > maxResponseBytes) {
             if (!isSettled) {
               isSettled = true;
               cleanup();
               req.destroy();
+              if (decompressor) decompressor.destroy();
               reject(new Error('PAYLOAD_LIMIT_EXCEEDED: Response body exceeds limit'));
             }
-            return;
+          } else {
+            chunks.push(chunk);
           }
-          chunks.push(chunk);
         });
 
-        res.on('end', () => {
+        stream.on('end', () => {
           if (isSettled) return;
           isSettled = true;
           cleanup();
@@ -234,6 +258,15 @@ export async function executeSafeRequest(
             bodyRaw,
             durationMs,
           });
+        });
+
+        stream.on('error', (err) => {
+          if (!isSettled) {
+            isSettled = true;
+            cleanup();
+            req.destroy();
+            reject(new Error(`TRANSPORT_ERROR: ${err.message}`));
+          }
         });
 
         res.on('error', (err) => {

@@ -58,10 +58,17 @@ export interface ReplayExecutionResult {
 
 const SENSITIVE_HEADER_KEYS = [
   'authorization',
+  'proxy-authorization',
   'cookie',
   'set-cookie',
   'x-api-key',
   'x-auth-token',
+  'x-csrf-token',
+  'x-xsrf-token',
+  'api-key',
+  'apikey',
+  'token',
+  'secret',
 ];
 
 /**

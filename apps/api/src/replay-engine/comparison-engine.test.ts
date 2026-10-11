@@ -121,5 +121,42 @@ describe('JSONPath & Differential Comparison Engine', () => {
       expect(diffFail.match).toBe(false);
       expect(diffFail.differences[0]?.type).toBe('TYPE_MISMATCH');
     });
+
+    it('correctly compares explicit null vs object / string', () => {
+      const diff1 = compareJsonPayloads({ value: null }, { value: 'not-null' });
+      expect(diff1.match).toBe(false);
+      expect(diff1.differences[0]?.type).toBe('CHANGED');
+
+      const diff2 = compareJsonPayloads({ value: null }, { value: {} });
+      expect(diff2.match).toBe(false);
+      expect(diff2.differences[0]?.type).toBe('CHANGED');
+
+      const diff3 = compareJsonPayloads({ value: null }, { value: null });
+      expect(diff3.match).toBe(true);
+    });
+
+    it('prevents prototype pollution queries in evaluateJsonPath', () => {
+      const target = { a: 1 };
+      expect(evaluateJsonPath(target, '$.__proto__.polluted')).toEqual({ exists: false });
+      expect(evaluateJsonPath(target, '$.constructor.prototype')).toEqual({ exists: false });
+    });
+
+    it('produces deterministic output regardless of key order in input objects', () => {
+      const obj1 = { z: 1, a: 2, m: 3 };
+      const obj2 = { a: 2, z: 99, m: 3 };
+
+      const diff = compareJsonPayloads(obj1, obj2);
+      expect(diff.match).toBe(false);
+      expect(diff.differences[0]?.path).toBe('$.z');
+    });
+
+    it('bounds total differences to prevent memory exhaustion on massive diffs', () => {
+      const expArr = new Array(1000).fill(0).map((_, i) => ({ id: i }));
+      const actArr = new Array(1000).fill(0).map((_, i) => ({ id: i + 1000 }));
+
+      const diff = compareJsonPayloads(expArr, actArr);
+      expect(diff.match).toBe(false);
+      expect(diff.differences.length).toBeLessThanOrEqual(500);
+    });
   });
 });

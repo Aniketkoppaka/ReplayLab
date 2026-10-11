@@ -52,4 +52,26 @@ describe('AES-256-GCM Secret Crypto Service (ADR-0005)', () => {
       'Secret decryption failed'
     );
   });
+
+  it('binds ciphertext to context via Associated Authenticated Data (AAD)', () => {
+    const secret = 'db-password-123';
+    const aadContext = 'env:env_prod_01:key:DB_PASSWORD';
+    const wrongContext = 'env:env_staging_02:key:DB_PASSWORD';
+
+    const encrypted = encryptSecret(secret, validHexKey, aadContext);
+
+    // Decrypt with correct AAD succeeds
+    const decrypted = decryptSecret(encrypted, validHexKey, aadContext);
+    expect(decrypted).toBe(secret);
+
+    // Decrypt with mismatched AAD fails closed
+    expect(() => decryptSecret(encrypted, validHexKey, wrongContext)).toThrow(
+      'Secret decryption failed'
+    );
+
+    // Decrypt with omitted AAD fails closed
+    expect(() => decryptSecret(encrypted, validHexKey)).toThrow(
+      'Secret decryption failed'
+    );
+  });
 });

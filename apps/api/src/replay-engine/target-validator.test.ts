@@ -76,4 +76,20 @@ describe('Target Validator & DNS Pre-Resolution', () => {
       validateAndResolveTarget('https://dual-homed.example.com', '/api', mockDualHomedDns)
     ).rejects.toThrow('SSRF_BLOCKED_DESTINATION');
   });
+
+  it('rejects protocol-relative paths (//attacker.com/leak)', async () => {
+    await expect(
+      validateAndResolveTarget('https://api.example.com', '//attacker.com/leak', mockPublicDns)
+    ).rejects.toThrow('SSRF_INVALID_URL: Protocol-relative paths are forbidden');
+  });
+
+  it('rejects credentials embedded in fixture paths (https://admin:pass@api.example.com/data)', async () => {
+    await expect(
+      validateAndResolveTarget(
+        'https://api.example.com',
+        'https://admin:secret@api.example.com/data',
+        mockPublicDns
+      )
+    ).rejects.toThrow('SSRF_URL_CREDENTIALS');
+  });
 });

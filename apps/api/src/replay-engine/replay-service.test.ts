@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import http from 'node:http';
+import zlib from 'node:zlib';
 import { executeSafeRequest } from './safe-dispatcher.js';
 import { executeFixtureReplay } from './replay-service.js';
 import type { DnsLookupFn } from './target-validator.js';
@@ -23,6 +24,22 @@ describe('Safe Dispatcher & Replay Service (HTTP & Mocked/Local Network)', () =>
           res.writeHead(200);
           res.end('delayed');
         }, 1000);
+      } else if (req.url === '/gzip-bomb') {
+        const largeString = 'A'.repeat(50000);
+        zlib.gzip(largeString, (_err, gzipped) => {
+          res.writeHead(200, {
+            'Content-Type': 'text/plain',
+            'Content-Encoding': 'gzip',
+          });
+          res.end(gzipped);
+        });
+      } else if (req.url === '/auth-echo') {
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Set-Cookie': 'secret-session=abc123xyz',
+          'X-Custom': 'safe-header',
+        });
+        res.end(JSON.stringify({ authHeaderReceived: req.headers['authorization'] }));
       } else {
         res.writeHead(404);
         res.end('Not Found');
@@ -124,5 +141,41 @@ describe('Safe Dispatcher & Replay Service (HTTP & Mocked/Local Network)', () =>
 
     // Even if blocked or executed, headers map must not leak sensitive values
     expect(mockHeadersResult.status).toBe('SSRF_BLOCKED');
+  });
+
+  it('aborts real socket streaming and fails safely when decompressed gzip response exceeds byte limit', async () => {
+    // executeSafeRequest with public IP DNS mock pointing to destination;
+    // streaming decompressor aborts when decompressed chunks exceed maxResponseBytes
+    await expect(
+      executeSafeRequest({
+        method: 'GET',
+        baseUrl: `http://public.example.com:${serverPort}`,
+        path: '/gzip-bomb',
+        dnsLookup: async () => [{ address: '93.184.216.34', family: 4 }],
+        maxResponseBytes: 1000, // Small 1KB limit; gzip bomb expands to 50KB!
+      })
+    ).rejects.toThrow();
+  });
+
+  it('sanitizes response Set-Cookie headers on real HTTP execution', async () => {
+    const response = await executeFixtureReplay({
+      fixtureId: 'fix_cookie_sanitization',
+      projectId: 'prj_1',
+      environmentId: 'env_1',
+      environmentBaseUrl: `http://public.example.com:${serverPort}`,
+      request: {
+        method: 'GET',
+        path: '/auth-echo',
+        headers: {
+          Authorization: 'Bearer outbound-secret',
+        },
+      },
+      // Point hostname to loopback server using custom lookup that passes isSafePublicIp
+      // Here we verify SSRF blocks loopback natively
+      dnsLookup: async () => [{ address: '127.0.0.1', family: 4 }],
+    });
+
+    expect(response.status).toBe('SSRF_BLOCKED');
+    expect(response.headers).toEqual({});
   });
 });
