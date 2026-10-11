@@ -1,0 +1,14 @@
+{
+  "name": "@replaylab/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "lint": "echo '@replaylab/api: lint placeholder'",
+    "typecheck": "tsc --noEmit",
+    "test": "echo '@replaylab/api: test placeholder'"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

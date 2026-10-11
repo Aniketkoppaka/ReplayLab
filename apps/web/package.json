@@ -1,0 +1,14 @@
+{
+  "name": "@replaylab/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "lint": "echo '@replaylab/web: lint placeholder'",
+    "typecheck": "tsc --noEmit",
+    "test": "echo '@replaylab/web: test placeholder'"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

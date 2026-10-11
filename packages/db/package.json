@@ -1,0 +1,15 @@
+{
+  "name": "@replaylab/db",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "echo '@replaylab/db: build placeholder'",
+    "lint": "echo '@replaylab/db: lint placeholder'",
+    "typecheck": "tsc --noEmit",
+    "test": "echo '@replaylab/db: test placeholder'"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
