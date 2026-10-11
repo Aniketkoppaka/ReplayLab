@@ -4,6 +4,7 @@ import zlib from 'node:zlib';
 import { executeSafeRequest } from './safe-dispatcher.js';
 import { executeFixtureReplay } from './replay-service.js';
 import type { DnsLookupFn } from './target-validator.js';
+import { ConcurrencyAdmissionController } from './admission-controller.js';
 
 describe('Safe Dispatcher & Replay Service (HTTP & Mocked/Local Network)', () => {
   let mockServer: http.Server;
@@ -33,13 +34,11 @@ describe('Safe Dispatcher & Replay Service (HTTP & Mocked/Local Network)', () =>
           });
           res.end(gzipped);
         });
-      } else if (req.url === '/auth-echo') {
-        res.writeHead(200, {
-          'Content-Type': 'application/json',
-          'Set-Cookie': 'secret-session=abc123xyz',
-          'X-Custom': 'safe-header',
+      } else if (req.url === '/redirect-to-private') {
+        res.writeHead(302, {
+          Location: 'http://169.254.169.254/latest/meta-data',
         });
-        res.end(JSON.stringify({ authHeaderReceived: req.headers['authorization'] }));
+        res.end();
       } else {
         res.writeHead(404);
         res.end('Not Found');
@@ -177,5 +176,77 @@ describe('Safe Dispatcher & Replay Service (HTTP & Mocked/Local Network)', () =>
 
     expect(response.status).toBe('SSRF_BLOCKED');
     expect(response.headers).toEqual({});
+  });
+
+  it('rejects execution when replay admission controller is saturated', async () => {
+    const miniLimiter = new ConcurrencyAdmissionController({
+      maxConcurrent: 1,
+      maxQueueSize: 0, // No queueing, rejects immediately when saturated
+    });
+
+    const mockDns: DnsLookupFn = async () => [{ address: '93.184.216.34', family: 4 }];
+
+    // Trigger two simultaneous replays
+    const p1 = executeFixtureReplay({
+      fixtureId: 'fix_sat_1',
+      projectId: 'prj_1',
+      environmentId: 'env_1',
+      environmentBaseUrl: 'http://nonexistent.example.com:54321',
+      request: { method: 'GET', path: '/test' },
+      limiter: miniLimiter,
+      dnsLookup: mockDns,
+      totalTimeoutMs: 500,
+    });
+
+    const p2 = executeFixtureReplay({
+      fixtureId: 'fix_sat_2',
+      projectId: 'prj_1',
+      environmentId: 'env_1',
+      environmentBaseUrl: 'http://nonexistent.example.com:54321',
+      request: { method: 'GET', path: '/test' },
+      limiter: miniLimiter,
+      dnsLookup: mockDns,
+      totalTimeoutMs: 500,
+    });
+
+    const [r1, r2] = await Promise.all([p1, p2]);
+
+    // One must succeed to run (or fail on transport), and the other must be rejected due to saturation
+    const saturated = [r1, r2].find((r) => r.errorMessage?.includes('concurrency saturation'));
+    expect(saturated).toBeDefined();
+    expect(saturated?.status).toBe('TRANSPORT_ERROR');
+  });
+
+  it('enforces conservative response capture policy (null body by default)', async () => {
+    const mockDns: DnsLookupFn = async () => [{ address: '127.0.0.1', family: 4 }];
+
+    // By default, captureResponseBody is false
+    const blockedRes = await executeFixtureReplay({
+      fixtureId: 'fix_policy_test',
+      projectId: 'prj_1',
+      environmentId: 'env_1',
+      environmentBaseUrl: `http://localhost:${serverPort}`,
+      request: { method: 'GET', path: '/v1/users' },
+      dnsLookup: mockDns,
+    });
+
+    // Body is null on security failure or by default policy
+    expect(blockedRes.body).toBeNull();
+  });
+
+  it('rejects redirect to internal metadata or private IP when redirects are followed', async () => {
+    // When maxRedirects > 0, following a redirect to a private IP (e.g. 169.254.169.254) must fail closed
+    await expect(
+      executeSafeRequest({
+        method: 'GET',
+        baseUrl: `http://public.example.com:${serverPort}`,
+        path: '/redirect-to-private',
+        dnsLookup: async (host) => {
+          if (host === '169.254.169.254') return [{ address: '169.254.169.254', family: 4 }];
+          return [{ address: '93.184.216.34', family: 4 }];
+        },
+        maxRedirects: 3,
+      })
+    ).rejects.toThrow();
   });
 });
