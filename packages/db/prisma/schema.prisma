@@ -1,0 +1,337 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum ProjectRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum HttpMethod {
+  GET
+  POST
+  PUT
+  PATCH
+  DELETE
+}
+
+enum BodyType {
+  NONE
+  JSON
+  TEXT
+}
+
+enum AssertionType {
+  STATUS_CODE
+  JSON_PATH_VALUE
+  JSON_PATH_EXISTS
+  RESPONSE_TIME_MAX
+}
+
+enum MaskAction {
+  IGNORE
+  TYPE_MATCH
+}
+
+enum ReplayOutcomeStatus {
+  SUCCESS
+  HTTP_ERROR
+  TRANSPORT_ERROR
+  TIMEOUT
+  SSRF_BLOCKED
+  ASSERTION_FAILURE
+}
+
+enum RunType {
+  SINGLE_REPLAY
+  SUITE_EXECUTION
+}
+
+model User {
+  id        String   @id // External auth subject identifier (e.g. Supabase auth.users.id UUID)
+  email     String   @unique
+  name      String
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships ProjectMember[]
+  auditLogs   AuditLog[]
+  replayRuns  ReplayRun[]
+  suiteRuns   SuiteRun[]
+
+  @@map("users")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members      ProjectMember[]
+  environments Environment[]
+  fixtures     Fixture[]
+  suites       RegressionSuite[]
+  auditLogs    AuditLog[]
+  replayRuns   ReplayRun[]
+  suiteRuns    SuiteRun[]
+
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String      @id @default(cuid())
+  projectId String
+  userId    String
+  role      ProjectRole @default(VIEWER)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+  @@index([projectId])
+  @@map("project_members")
+}
+
+model Environment {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String
+  baseUrl   String
+  headers   Json     @default("{}") // Record<string, string>
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project   Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  variables EnvironmentVariable[]
+  replayRuns ReplayRun[]
+  suiteRuns SuiteRun[]
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@map("environments")
+}
+
+model EnvironmentVariable {
+  id            String   @id @default(cuid())
+  environmentId String
+  key           String
+  // Encrypted ciphertext if isSecret = true, plaintext if isSecret = false
+  value         String
+  isSecret      Boolean  @default(false)
+  // Initialization vector / nonce for authenticated encryption (e.g. AES-256-GCM)
+  secretIv      String?
+  // Authentication tag for AES-GCM
+  secretAuthTag String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  environment Environment @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+
+  @@unique([environmentId, key])
+  @@index([environmentId])
+  @@map("environment_variables")
+}
+
+model Fixture {
+  id          String   @id @default(cuid())
+  projectId   String
+  name        String
+  description String?
+  tags        String[] @default([])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Request Definition
+  method      HttpMethod
+  path        String   // Relative URL path or absolute URL
+  queryParams Json     @default("{}") // Record<string, string | string[]>
+  headers     Json     @default("{}") // Record<string, string>
+  bodyType    BodyType @default(NONE)
+  body        Json?
+
+  // Current Baseline Definition (Preserved on fixture edits unless explicitly updated)
+  baselineStatusCode Int?
+  baselineHeaders    Json?     @default("{}")
+  baselineBodyType   BodyType?
+  baselineBody       Json?
+  baselineUpdatedAt  DateTime?
+
+  project      Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  suiteItems   SuiteFixture[]
+  replayRuns   ReplayRun[]
+  baselineLogs FixtureBaselineHistory[]
+
+  @@index([projectId])
+  @@index([projectId, name])
+  @@map("fixtures")
+}
+
+// Explicit historical snapshots of baseline updates
+model FixtureBaselineHistory {
+  id         String   @id @default(cuid())
+  fixtureId  String
+  statusCode Int
+  headers    Json     @default("{}")
+  bodyType   BodyType @default(NONE)
+  body       Json?
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  fixture Fixture @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+
+  @@index([fixtureId])
+  @@map("fixture_baseline_history")
+}
+
+model RegressionSuite {
+  id          String   @id @default(cuid())
+  projectId   String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project   Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  items     SuiteFixture[]
+  suiteRuns SuiteRun[]
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@map("regression_suites")
+}
+
+model SuiteFixture {
+  id        String   @id @default(cuid())
+  suiteId   String
+  fixtureId String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  suite      RegressionSuite @relation(fields: [suiteId], references: [id], onDelete: Cascade)
+  fixture    Fixture         @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+  assertions SuiteAssertion[]
+  maskRules  SuiteMaskRule[]
+
+  @@unique([suiteId, fixtureId])
+  @@index([suiteId, order])
+  @@index([fixtureId])
+  @@map("suite_fixtures")
+}
+
+model SuiteAssertion {
+  id             String        @id @default(cuid())
+  suiteFixtureId String
+  type           AssertionType
+  path           String?       // JSON path for JSON_PATH_VALUE / JSON_PATH_EXISTS
+  expectedValue  Json?         // Expected value for STATUS_CODE (number) or JSON_PATH_VALUE (any)
+  maxDurationMs  Int?          // Threshold for RESPONSE_TIME_MAX
+  createdAt      DateTime      @default(now())
+
+  suiteFixture SuiteFixture @relation(fields: [suiteFixtureId], references: [id], onDelete: Cascade)
+
+  @@index([suiteFixtureId])
+  @@map("suite_assertions")
+}
+
+model SuiteMaskRule {
+  id             String     @id @default(cuid())
+  suiteFixtureId String
+  path           String     // JSON path to mask during comparison
+  action         MaskAction @default(IGNORE)
+  createdAt      DateTime   @default(now())
+
+  suiteFixture SuiteFixture @relation(fields: [suiteFixtureId], references: [id], onDelete: Cascade)
+
+  @@index([suiteFixtureId])
+  @@map("suite_mask_rules")
+}
+
+model ReplayRun {
+  id             String              @id @default(cuid())
+  projectId      String
+  fixtureId      String
+  environmentId  String
+  suiteRunId     String?
+  triggeredById  String?
+  status         ReplayOutcomeStatus
+  httpStatusCode Int?
+  headers        Json?               @default("{}")
+  bodyType       BodyType?           @default(NONE)
+  body           Json?
+  durationMs     Int                 @default(0)
+  errorMessage   String?
+  diffFound      Boolean             @default(false)
+  diffDetails    Json?
+  executedAt     DateTime            @default(now())
+
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fixture     Fixture      @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+  environment Environment  @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  suiteRun    SuiteRun?    @relation(fields: [suiteRunId], references: [id], onDelete: Cascade)
+  triggeredBy User?        @relation(fields: [triggeredById], references: [id], onDelete: SetNull)
+
+  @@index([projectId, executedAt])
+  @@index([fixtureId, executedAt])
+  @@index([environmentId])
+  @@index([suiteRunId])
+  @@map("replay_runs")
+}
+
+model SuiteRun {
+  id            String              @id @default(cuid())
+  projectId     String
+  suiteId       String
+  environmentId String
+  triggeredById String?
+  status        ReplayOutcomeStatus
+  totalItems    Int                 @default(0)
+  passedItems   Int                 @default(0)
+  failedItems   Int                 @default(0)
+  durationMs    Int                 @default(0)
+  startedAt     DateTime            @default(now())
+  completedAt   DateTime?
+
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  suite       RegressionSuite @relation(fields: [suiteId], references: [id], onDelete: Cascade)
+  environment Environment     @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  triggeredBy User?           @relation(fields: [triggeredById], references: [id], onDelete: SetNull)
+  results     ReplayRun[]
+
+  @@index([projectId, startedAt])
+  @@index([suiteId, startedAt])
+  @@index([environmentId])
+  @@map("suite_runs")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  projectId  String
+  userId     String?
+  action     String   // e.g. "FIXTURE_CREATED", "BASELINE_UPDATED", "ENV_SECRET_ROTATED"
+  targetType String   // e.g. "Fixture", "Environment", "RegressionSuite"
+  targetId   String
+  metadata   Json     @default("{}") // Redacted metadata; NEVER contains secrets or auth tokens
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+  @@index([targetType, targetId])
+  @@map("audit_logs")
+}
