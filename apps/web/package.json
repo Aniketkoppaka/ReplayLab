@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "lint": "next lint",
+    "lint": "eslint src/ --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "clean": "rimraf .next out dist"
