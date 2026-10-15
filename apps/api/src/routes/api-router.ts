@@ -80,7 +80,13 @@ export function createApiRouter(
     }
 
     const message = err instanceof Error ? err.message : 'Internal server error';
-    if (message.startsWith('FIXTURE_NOT_FOUND') || message.startsWith('ENVIRONMENT_NOT_FOUND')) {
+    if (
+      message.startsWith('FIXTURE_NOT_FOUND') ||
+      message.startsWith('ENVIRONMENT_NOT_FOUND') ||
+      message.startsWith('SUITE_NOT_FOUND') ||
+      message.startsWith('MEMBER_NOT_FOUND') ||
+      message.startsWith('RESOURCE_NOT_FOUND')
+    ) {
       res.status(404).json({
         error: {
           code: 'NOT_FOUND',

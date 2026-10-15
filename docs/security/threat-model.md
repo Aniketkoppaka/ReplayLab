@@ -30,3 +30,18 @@ Because ReplayLab executes arbitrary user-supplied HTTP URLs, it is inherently a
    - Outbound sockets connect directly to the pre-validated IP address, setting the `Host` header to the original hostname.
 4. **Manual Redirect Inspection**:
    - HTTP clients must not follow redirects automatically. Each `3xx` redirect location must be extracted, checked, resolved, and verified before continuing.
+
+## 4. Multi-Tenant Authorization & Non-Disclosure Policy
+
+ReplayLab strictly prevents cross-tenant resource enumeration and unauthorized access:
+
+1. **Existence Non-Disclosure (404 Policy)**:
+   - When an authenticated user requests a resource (project, environment, fixture, baseline, suite, or member) that either does not exist or belongs to another project where they lack membership, the API consistently returns `HTTP 404 NOT_FOUND` with error code `NOT_FOUND`.
+   - Returning `403 FORBIDDEN` for foreign resources would allow attackers to enumerate project IDs, resource UUIDs, or membership relationships. `403 FORBIDDEN` is strictly reserved for authenticated members of a project who lack sufficient role privileges (e.g. `VIEWER` attempting a write or replay action).
+2. **Nested Resource Boundary Enforcement**:
+   - Every nested resource operation (`/projects/:projectId/fixtures/:fixtureId`, `/projects/:projectId/environments/:envId`, `/projects/:projectId/suites/:suiteId`, `/projects/:projectId/members/:memberId`) validates that the target entity's `projectId` foreign key strictly matches the path `:projectId`.
+   - Replay execution validates that both the fixture and target environment belong to the authorized project.
+3. **Atomic Last-Owner Invariant**:
+   - A project cannot be left without an active `OWNER`.
+   - Both removal (`DELETE /members/:id`) and role updates/demotions (`POST /members` with role other than `OWNER`) are transactionally evaluated to ensure at least one `OWNER` remains. Attempts to remove or demote the last owner fail with `403 FORBIDDEN (LAST_OWNER_PROTECTION)`.
+

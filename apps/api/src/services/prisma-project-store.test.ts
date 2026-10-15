@@ -78,6 +78,72 @@ describe('PrismaProjectStore Contract & Isolation Suite', () => {
     });
   });
 
+  describe('Transactional Owner Protection Invariants', () => {
+    it('prevents demoting the last owner in assignProjectMember', async () => {
+      const mockTx = {
+        user: {
+          findUnique: async () => ({ id: 'usr_owner_1', email: 'owner@test.com', name: 'Owner' }),
+        },
+        projectMember: {
+          findUnique: async () => ({ id: 'pm_1', projectId: 'proj_1', userId: 'usr_owner_1', role: 'OWNER' }),
+          count: async () => 1, // Only 1 owner
+        },
+      };
+
+      const mockPrisma = {
+        $transaction: async (cb: (tx: unknown) => Promise<unknown>) => cb(mockTx),
+      } as unknown as PrismaClient;
+
+      const store = new PrismaProjectStore(mockPrisma);
+
+      await expect(
+        store.assignProjectMember('proj_1', {
+          userId: 'usr_owner_1',
+          role: 'VIEWER',
+        })
+      ).rejects.toThrow('LAST_OWNER_PROTECTION: Cannot demote the last project owner');
+    });
+
+    it('prevents removing the last owner in removeProjectMember', async () => {
+      const mockTx = {
+        projectMember: {
+          findFirst: async () => ({ id: 'pm_1', projectId: 'proj_1', userId: 'usr_owner_1', role: 'OWNER' }),
+          count: async () => 1, // Only 1 owner
+        },
+      };
+
+      const mockPrisma = {
+        $transaction: async (cb: (tx: unknown) => Promise<unknown>) => cb(mockTx),
+      } as unknown as PrismaClient;
+
+      const store = new PrismaProjectStore(mockPrisma);
+
+      await expect(
+        store.removeProjectMember('proj_1', 'pm_1')
+      ).rejects.toThrow('LAST_OWNER_PROTECTION: Cannot remove the last project owner');
+    });
+
+    it('allows removing an owner if multiple owners exist', async () => {
+      let deleted = false;
+      const mockTx = {
+        projectMember: {
+          findFirst: async () => ({ id: 'pm_1', projectId: 'proj_1', userId: 'usr_owner_1', role: 'OWNER' }),
+          count: async () => 2, // 2 owners exist
+          delete: async () => { deleted = true; },
+        },
+      };
+
+      const mockPrisma = {
+        $transaction: async (cb: (tx: unknown) => Promise<unknown>) => cb(mockTx),
+      } as unknown as PrismaClient;
+
+      const store = new PrismaProjectStore(mockPrisma);
+
+      await store.removeProjectMember('proj_1', 'pm_1');
+      expect(deleted).toBe(true);
+    });
+  });
+
   describe('PostgreSQL Live Integration Check Status', () => {
     it('documents blocked status of live TCP port 5432 connection truthfully', () => {
       // Confirms database availability guard

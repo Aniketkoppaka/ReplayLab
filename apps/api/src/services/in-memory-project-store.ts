@@ -283,6 +283,14 @@ export class InMemoryProjectStore implements ProjectStore {
     // Check if already a member
     for (const m of this.members.values()) {
       if (m.projectId === projectId && m.userId === targetUser.id) {
+        if (m.role === 'OWNER' && input.role !== 'OWNER') {
+          const ownerCount = Array.from(this.members.values()).filter(
+            (mem) => mem.projectId === projectId && mem.role === 'OWNER'
+          ).length;
+          if (ownerCount <= 1) {
+            throw new Error('LAST_OWNER_PROTECTION: Cannot demote the last project owner');
+          }
+        }
         m.role = input.role;
         m.updatedAt = now;
         return {
@@ -319,9 +327,20 @@ export class InMemoryProjectStore implements ProjectStore {
 
   public async removeProjectMember(projectId: string, memberId: string): Promise<void> {
     const member = this.members.get(memberId);
-    if (member && member.projectId === projectId) {
-      this.members.delete(memberId);
+    if (!member || member.projectId !== projectId) {
+      throw new Error('MEMBER_NOT_FOUND: Project member not found');
     }
+
+    if (member.role === 'OWNER') {
+      const ownerCount = Array.from(this.members.values()).filter(
+        (mem) => mem.projectId === projectId && mem.role === 'OWNER'
+      ).length;
+      if (ownerCount <= 1) {
+        throw new Error('LAST_OWNER_PROTECTION: Cannot remove the last project owner');
+      }
+    }
+
+    this.members.delete(memberId);
   }
 
   // --- Environments ---

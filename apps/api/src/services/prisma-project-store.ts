@@ -252,7 +252,26 @@ export class PrismaProjectStore implements ProjectStore {
         throw new Error('USER_NOT_FOUND: Unable to resolve user for project membership');
       }
 
+      // Check current member role in tx to guard role demotion of last owner
+      const existingMember = await tx.projectMember.findUnique({
+        where: {
+          projectId_userId: {
+            projectId,
+            userId: targetUser.id,
+          },
+        },
+      });
+
       const roleEnum = input.role as DbProjectRole;
+
+      if (existingMember && existingMember.role === 'OWNER' && roleEnum !== 'OWNER') {
+        const ownerCount = await tx.projectMember.count({
+          where: { projectId, role: 'OWNER' },
+        });
+        if (ownerCount <= 1) {
+          throw new Error('LAST_OWNER_PROTECTION: Cannot demote the last project owner');
+        }
+      }
 
       const member = await tx.projectMember.upsert({
         where: {
@@ -297,12 +316,28 @@ export class PrismaProjectStore implements ProjectStore {
     projectId: string,
     memberId: string
   ): Promise<void> {
-    // Delete only if member belongs to projectId
-    await this.prisma.projectMember.deleteMany({
-      where: {
-        id: memberId,
-        projectId,
-      },
+    await this.prisma.$transaction(async (tx) => {
+      // Find the member to be removed
+      const member = await tx.projectMember.findFirst({
+        where: { id: memberId, projectId },
+      });
+
+      if (!member) {
+        throw new Error('MEMBER_NOT_FOUND: Project member not found');
+      }
+
+      if (member.role === 'OWNER') {
+        const ownerCount = await tx.projectMember.count({
+          where: { projectId, role: 'OWNER' },
+        });
+        if (ownerCount <= 1) {
+          throw new Error('LAST_OWNER_PROTECTION: Cannot remove the last project owner');
+        }
+      }
+
+      await tx.projectMember.delete({
+        where: { id: memberId },
+      });
     });
   }
 

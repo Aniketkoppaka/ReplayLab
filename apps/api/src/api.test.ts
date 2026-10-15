@@ -258,6 +258,21 @@ describe('Authenticated API Foundation Integration Tests', () => {
       expect(removeRes.body.error.message).toContain('LAST_OWNER_PROTECTION');
     });
 
+    it('enforces last-owner protection against role demotion (cannot change last owner to EDITOR or VIEWER)', async () => {
+      // Attempt to demote the sole owner to VIEWER
+      const demoteRes = await request(app)
+        .post(`/api/v1/projects/${projectId}/members`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({
+          userId: ownerId,
+          role: 'VIEWER',
+        });
+
+      expect(demoteRes.status).toBe(403);
+      expect(demoteRes.body.error.code).toBe('FORBIDDEN');
+      expect(demoteRes.body.error.message).toContain('LAST_OWNER_PROTECTION');
+    });
+
     it('enforces cross-project isolation: cannot access or modify resources using mismatched project IDs', async () => {
       // Create a second project owned by outsider
       const otherProjectRes = await request(app)
@@ -267,12 +282,20 @@ describe('Authenticated API Foundation Integration Tests', () => {
       const foreignProjectId = otherProjectRes.body.id;
 
       // Outsider attempts to access projectId's fixture via foreignProjectId path
-      const crossRes = await request(app)
+      const crossFixtureRes = await request(app)
         .get(`/api/v1/projects/${foreignProjectId}/fixtures/${fixtureId}`)
         .set('Authorization', `Bearer ${outsiderToken}`);
 
-      expect(crossRes.status).toBe(404);
-      expect(crossRes.body.error.code).toBe('NOT_FOUND');
+      expect(crossFixtureRes.status).toBe(404);
+      expect(crossFixtureRes.body.error.code).toBe('NOT_FOUND');
+
+      // Outsider attempts to access projectId's environment via foreignProjectId path
+      const crossEnvRes = await request(app)
+        .get(`/api/v1/projects/${foreignProjectId}/environments/${environmentId}`)
+        .set('Authorization', `Bearer ${outsiderToken}`);
+
+      expect(crossEnvRes.status).toBe(404);
+      expect(crossEnvRes.body.error.code).toBe('NOT_FOUND');
     });
   });
 
@@ -522,5 +545,14 @@ describe('Authenticated API Foundation Integration Tests', () => {
         .set('Authorization', `Bearer ${ownerToken}`);
       expect(getRes.status).toBe(404);
     });
+
+    it('enforces 404 non-disclosure on suites for unauthorized outsiders', async () => {
+      const getRes = await request(app)
+        .get(`/api/v1/projects/${projectId}/suites/${suiteId}`)
+        .set('Authorization', `Bearer ${outsiderToken}`);
+      expect(getRes.status).toBe(404);
+      expect(getRes.body.error.code).toBe('NOT_FOUND');
+    });
   });
 });
+
