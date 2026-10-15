@@ -44,6 +44,7 @@ export type EnvironmentVariableResponse = z.infer<typeof EnvironmentVariableResp
  * Environment creation input schema.
  */
 export const CreateEnvironmentInputSchema = z.object({
+  projectId: ResourceIdSchema.optional(),
   name: z
     .string()
     .trim()

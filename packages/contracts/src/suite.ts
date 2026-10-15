@@ -105,7 +105,7 @@ export type SuiteItem = z.infer<typeof SuiteItemSchema>;
  * Suite creation input schema.
  */
 export const CreateSuiteInputSchema = z.object({
-  projectId: ResourceIdSchema,
+  projectId: ResourceIdSchema.optional(),
   name: z
     .string()
     .trim()

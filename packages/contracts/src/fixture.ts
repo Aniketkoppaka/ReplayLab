@@ -61,7 +61,7 @@ export type BaselineResponseDefinition = z.infer<typeof BaselineResponseDefiniti
  * Fixture creation input.
  */
 export const CreateFixtureInputSchema = z.object({
-  projectId: ResourceIdSchema,
+  projectId: ResourceIdSchema.optional(),
   name: z
     .string()
     .trim()

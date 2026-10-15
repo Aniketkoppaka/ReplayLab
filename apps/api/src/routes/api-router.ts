@@ -1,0 +1,387 @@
+import express, { type Router, type Response } from 'express';
+import {
+  CreateProjectInputSchema,
+  UpdateProjectInputSchema,
+  AssignProjectMemberInputSchema,
+  CreateEnvironmentInputSchema,
+  UpdateEnvironmentInputSchema,
+  CreateFixtureInputSchema,
+  UpdateFixtureInputSchema,
+  UpdateBaselineInputSchema,
+  CreateSuiteInputSchema,
+  UpdateSuiteInputSchema,
+  TriggerReplayInputSchema,
+} from '@replaylab/contracts';
+import { authenticate, type AuthenticatedRequest } from '../auth/auth-middleware.js';
+import { ProjectService, ProjectAuthorizationError } from '../services/project-service.js';
+import { AuthorizedReplayService } from '../services/authorized-replay-service.js';
+import { ConcurrencyAdmissionError } from '../replay-engine/index.js';
+import { ZodError } from 'zod';
+
+export function createApiRouter(
+  projectService: ProjectService,
+  replayService: AuthorizedReplayService
+): Router {
+  const router = express.Router();
+
+  // Protect all API routes with JWT Authentication
+  router.use(authenticate());
+
+  const p = (val: string | string[] | undefined): string => {
+    return Array.isArray(val) ? val[0]! : val ?? '';
+  };
+
+  // Helper for safe error responses
+  const handleError = (res: Response, err: unknown) => {
+    if (err instanceof ZodError) {
+      res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Input validation failed',
+          details: err.errors.map((e) => ({
+            path: e.path.join('.'),
+            message: e.message,
+            code: e.code,
+          })),
+        },
+      });
+      return;
+    }
+
+    if (err instanceof ProjectAuthorizationError) {
+      res.status(err.code === 'NOT_FOUND' ? 404 : 403).json({
+        error: {
+          code: err.code === 'NOT_FOUND' ? 'NOT_FOUND' : 'FORBIDDEN',
+          message: err.message,
+        },
+      });
+      return;
+    }
+
+    if (err instanceof ConcurrencyAdmissionError) {
+      // Map admission saturation to HTTP 503 without fabricating a run
+      res.status(503).json({
+        error: {
+          code: 'ADMISSION_REJECTED',
+          message: 'Server is currently at maximum capacity; please retry later',
+        },
+      });
+      return;
+    }
+
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    if (message.startsWith('FIXTURE_NOT_FOUND') || message.startsWith('ENVIRONMENT_NOT_FOUND')) {
+      res.status(404).json({
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Requested resource not found in project',
+        },
+      });
+      return;
+    }
+
+    res.status(500).json({
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An internal error occurred',
+      },
+    });
+  };
+
+  // --- Projects ---
+  router.get('/projects', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const projects = await projectService.listUserProjects(user.id);
+      res.json(projects);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.post('/projects', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const input = CreateProjectInputSchema.parse(req.body);
+      const project = await projectService.createProject(user.id, input);
+      res.status(201).json(project);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.get('/projects/:projectId', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const project = await projectService.getProject(p(req.params.projectId), user.id);
+      res.json(project);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.patch('/projects/:projectId', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const input = UpdateProjectInputSchema.parse(req.body);
+      const project = await projectService.updateProject(p(req.params.projectId), user.id, input);
+      res.json(project);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.delete('/projects/:projectId', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      await projectService.deleteProject(p(req.params.projectId), user.id);
+      res.status(204).end();
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  // --- Members ---
+  router.get('/projects/:projectId/members', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const members = await projectService.listMembers(p(req.params.projectId), user.id);
+      res.json(members);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.post('/projects/:projectId/members', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const input = AssignProjectMemberInputSchema.parse(req.body);
+      const member = await projectService.assignMember(p(req.params.projectId), user.id, input);
+      res.status(201).json(member);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.delete('/projects/:projectId/members/:memberId', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      await projectService.removeMember(p(req.params.projectId), user.id, p(req.params.memberId));
+      res.status(204).end();
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  // --- Environments ---
+  router.get('/projects/:projectId/environments', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const envs = await projectService.listEnvironments(p(req.params.projectId), user.id);
+      res.json(envs);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.post('/projects/:projectId/environments', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const input = CreateEnvironmentInputSchema.parse(req.body);
+      const env = await projectService.createEnvironment(p(req.params.projectId), user.id, input);
+      res.status(201).json(env);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.get('/projects/:projectId/environments/:envId', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const env = await projectService.getEnvironment(p(req.params.projectId), p(req.params.envId), user.id);
+      res.json(env);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.patch('/projects/:projectId/environments/:envId', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const input = UpdateEnvironmentInputSchema.parse(req.body);
+      const env = await projectService.updateEnvironment(
+        p(req.params.projectId),
+        p(req.params.envId),
+        user.id,
+        input
+      );
+      res.json(env);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.delete('/projects/:projectId/environments/:envId', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      await projectService.deleteEnvironment(p(req.params.projectId), p(req.params.envId), user.id);
+      res.status(204).end();
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  // --- Fixtures ---
+  router.get('/projects/:projectId/fixtures', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const fixtures = await projectService.listFixtures(p(req.params.projectId), user.id);
+      res.json(fixtures);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.post('/projects/:projectId/fixtures', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const input = CreateFixtureInputSchema.parse(req.body);
+      const fixture = await projectService.createFixture(p(req.params.projectId), user.id, input);
+      res.status(201).json(fixture);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.get('/projects/:projectId/fixtures/:fixtureId', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const fixture = await projectService.getFixture(p(req.params.projectId), p(req.params.fixtureId), user.id);
+      res.json(fixture);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.patch('/projects/:projectId/fixtures/:fixtureId', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const input = UpdateFixtureInputSchema.parse(req.body);
+      const fixture = await projectService.updateFixture(
+        p(req.params.projectId),
+        p(req.params.fixtureId),
+        user.id,
+        input
+      );
+      res.json(fixture);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.post('/projects/:projectId/fixtures/:fixtureId/baseline', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const input = UpdateBaselineInputSchema.parse(req.body);
+      const fixture = await projectService.updateBaseline(
+        p(req.params.projectId),
+        p(req.params.fixtureId),
+        user.id,
+        input
+      );
+      res.json(fixture);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.delete('/projects/:projectId/fixtures/:fixtureId', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      await projectService.deleteFixture(p(req.params.projectId), p(req.params.fixtureId), user.id);
+      res.status(204).end();
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  // --- Suites ---
+  router.get('/projects/:projectId/suites', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const suites = await projectService.listSuites(p(req.params.projectId), user.id);
+      res.json(suites);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.post('/projects/:projectId/suites', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const input = CreateSuiteInputSchema.parse(req.body);
+      const suite = await projectService.createSuite(p(req.params.projectId), user.id, input);
+      res.status(201).json(suite);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.get('/projects/:projectId/suites/:suiteId', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const suite = await projectService.getSuite(p(req.params.projectId), p(req.params.suiteId), user.id);
+      res.json(suite);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.patch('/projects/:projectId/suites/:suiteId', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const input = UpdateSuiteInputSchema.parse(req.body);
+      const suite = await projectService.updateSuite(
+        p(req.params.projectId),
+        p(req.params.suiteId),
+        user.id,
+        input
+      );
+      res.json(suite);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.delete('/projects/:projectId/suites/:suiteId', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      await projectService.deleteSuite(p(req.params.projectId), p(req.params.suiteId), user.id);
+      res.status(204).end();
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  // --- Replay Trigger ---
+  router.post('/projects/:projectId/replay', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const input = TriggerReplayInputSchema.parse(req.body);
+
+      const result = await replayService.triggerReplay({
+        projectId: p(req.params.projectId),
+        fixtureId: input.fixtureId,
+        environmentId: input.environmentId,
+        userId: user.id,
+        captureResponseBody: req.body.captureResponseBody === true,
+      });
+
+      res.json(result);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  return router;
+}

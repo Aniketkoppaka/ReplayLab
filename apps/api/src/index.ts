@@ -14,3 +14,10 @@ export function getSystemInfo() {
     dbPackageVersion: DB_PACKAGE_VERSION,
   };
 }
+
+export { createApp, type AppOptions } from './app.js';
+export * from './auth/index.js';
+export * from './services/project-service.js';
+export * from './services/in-memory-project-store.js';
+export * from './services/authorized-replay-service.js';
+export * from './routes/api-router.js';

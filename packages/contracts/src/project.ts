@@ -79,8 +79,12 @@ export type ProjectResponse = z.infer<typeof ProjectResponseSchema>;
  * Member invitation / assignment input schema.
  */
 export const AssignProjectMemberInputSchema = z.object({
-  email: z.string().email('Valid email address required'),
+  userId: ResourceIdSchema.optional(),
+  email: z.string().email('Valid email address required').optional(),
   role: ProjectRoleSchema,
-});
+}).refine(
+  (data) => data.userId !== undefined || data.email !== undefined,
+  { message: 'Either userId or email must be provided' }
+);
 
 export type AssignProjectMemberInput = z.infer<typeof AssignProjectMemberInputSchema>;
