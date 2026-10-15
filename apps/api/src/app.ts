@@ -4,9 +4,13 @@ import { InMemoryProjectStore } from './services/in-memory-project-store.js';
 import { AuthorizedReplayService } from './services/authorized-replay-service.js';
 import { createApiRouter } from './routes/api-router.js';
 
+import { PrismaProjectStore } from './services/prisma-project-store.js';
+import { prisma } from '@replaylab/db';
+
 export interface AppOptions {
   projectService?: ProjectService;
   replayService?: AuthorizedReplayService;
+  useInMemoryStore?: boolean;
 }
 
 export function createApp(options?: AppOptions): Express {
@@ -15,8 +19,14 @@ export function createApp(options?: AppOptions): Express {
   // Middleware
   app.use(express.json({ limit: '10mb' }));
 
-  // Services initialization (default to in-memory if not injected)
-  const store = new InMemoryProjectStore();
+  // Services initialization:
+  // In production or when DATABASE_URL is set, use durable PrismaProjectStore.
+  // When explicitly requested (e.g. unit tests) or when DB is disabled, use InMemoryProjectStore.
+  const store =
+    options?.useInMemoryStore || !process.env.DATABASE_URL
+      ? new InMemoryProjectStore()
+      : new PrismaProjectStore(prisma);
+
   const projectService = options?.projectService ?? new ProjectService(store);
   const replayService =
     options?.replayService ?? new AuthorizedReplayService(projectService);

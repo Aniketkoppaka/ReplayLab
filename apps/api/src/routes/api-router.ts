@@ -58,6 +58,16 @@ export function createApiRouter(
       return;
     }
 
+    if (err instanceof Error && err.message.startsWith('LAST_OWNER_PROTECTION')) {
+      res.status(403).json({
+        error: {
+          code: 'FORBIDDEN',
+          message: err.message,
+        },
+      });
+      return;
+    }
+
     if (err instanceof ConcurrencyAdmissionError) {
       // Map admission saturation to HTTP 503 without fabricating a run
       res.status(503).json({

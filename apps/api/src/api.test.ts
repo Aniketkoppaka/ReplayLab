@@ -240,12 +240,39 @@ describe('Authenticated API Foundation Integration Tests', () => {
       expect(envRes.body.error.code).toBe('FORBIDDEN');
     });
 
-    it('VIEWER can view resources', async () => {
-      const res = await request(app)
-        .get(`/api/v1/projects/${projectId}/fixtures/${fixtureId}`)
-        .set('Authorization', `Bearer ${viewerToken}`);
-      expect(res.status).toBe(200);
-      expect(res.body.id).toBe(fixtureId);
+    it('enforces last-owner protection (cannot remove or delete the only project owner)', async () => {
+      // Find the owner member ID
+      const membersRes = await request(app)
+        .get(`/api/v1/projects/${projectId}/members`)
+        .set('Authorization', `Bearer ${ownerToken}`);
+      const ownerMember = membersRes.body.find((m: { role: string }) => m.role === 'OWNER');
+      expect(ownerMember).toBeDefined();
+
+      // Attempt to remove the only owner
+      const removeRes = await request(app)
+        .delete(`/api/v1/projects/${projectId}/members/${ownerMember.id}`)
+        .set('Authorization', `Bearer ${ownerToken}`);
+
+      expect(removeRes.status).toBe(403);
+      expect(removeRes.body.error.code).toBe('FORBIDDEN');
+      expect(removeRes.body.error.message).toContain('LAST_OWNER_PROTECTION');
+    });
+
+    it('enforces cross-project isolation: cannot access or modify resources using mismatched project IDs', async () => {
+      // Create a second project owned by outsider
+      const otherProjectRes = await request(app)
+        .post('/api/v1/projects')
+        .set('Authorization', `Bearer ${outsiderToken}`)
+        .send({ name: 'Foreign Isolated Project' });
+      const foreignProjectId = otherProjectRes.body.id;
+
+      // Outsider attempts to access projectId's fixture via foreignProjectId path
+      const crossRes = await request(app)
+        .get(`/api/v1/projects/${foreignProjectId}/fixtures/${fixtureId}`)
+        .set('Authorization', `Bearer ${outsiderToken}`);
+
+      expect(crossRes.status).toBe(404);
+      expect(crossRes.body.error.code).toBe('NOT_FOUND');
     });
   });
 

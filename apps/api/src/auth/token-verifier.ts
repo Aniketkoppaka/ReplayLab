@@ -51,15 +51,19 @@ export async function verifyToken(
     if (jwtSecret) {
       const secretBytes = Buffer.from(jwtSecret, 'utf-8');
       const verification = await jwtVerify(token, secretBytes, {
+        algorithms: ['HS256'], // Symmetric secret strictly requires HS256
         issuer: issuer || undefined,
         audience: audience || undefined,
+        clockTolerance: 5, // 5 seconds grace for clock skew
       });
       payload = verification.payload as Record<string, unknown>;
     } else if (jwksUri) {
       const jwks = createRemoteJWKSet(new URL(jwksUri));
       const verification = await jwtVerify(token, jwks, {
+        algorithms: ['RS256', 'ES256'], // Remote JWKS standard asymmetric algorithms
         issuer: issuer || undefined,
         audience: audience || undefined,
+        clockTolerance: 5,
       });
       payload = verification.payload as Record<string, unknown>;
     } else {

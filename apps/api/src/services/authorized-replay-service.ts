@@ -4,8 +4,7 @@ import {
   type ReplayExecutionParams,
 } from '../replay-engine/index.js';
 import { decryptSecret } from '../crypto.js';
-import type { InMemoryProjectStore } from './in-memory-project-store.js';
-import type { ProjectService } from './project-service.js';
+import type { ProjectService, ProjectStore } from './project-service.js';
 
 export interface TriggerAuthorizedReplayParams {
   projectId: string;
@@ -39,13 +38,13 @@ export interface ReplayAuditRecord {
  */
 export class AuthorizedReplayService {
   public auditLogs: ReplayAuditRecord[] = [];
-  private readonly store: InMemoryProjectStore;
+  private readonly store: ProjectStore;
 
   constructor(
     private readonly projectService: ProjectService,
-    store?: InMemoryProjectStore
+    store?: ProjectStore
   ) {
-    this.store = store ?? (projectService.store as InMemoryProjectStore);
+    this.store = store ?? projectService.store;
   }
 
   public async triggerReplay(
@@ -62,7 +61,7 @@ export class AuthorizedReplayService {
       throw new Error('FIXTURE_NOT_FOUND: Fixture does not exist in this project');
     }
 
-    const storedEnv = this.store.environments.get(environmentId);
+    const storedEnv = await this.store.getEnvironmentSecrets(projectId, environmentId);
     if (!storedEnv || storedEnv.projectId !== projectId) {
       throw new Error('ENVIRONMENT_NOT_FOUND: Environment does not exist in this project');
     }
@@ -87,10 +86,10 @@ export class AuthorizedReplayService {
     }
 
     // 4. Construct execution parameters using authorized baseline
-    const storedFixture = this.store.fixtures.get(fixtureId);
+    const currentBaselineId = await this.store.getCurrentBaselineId(projectId, fixtureId);
     const baselineSnapshot = fixture.baseline
       ? {
-          id: storedFixture?.currentBaseline?.id,
+          id: currentBaselineId ?? undefined,
           statusCode: fixture.baseline.statusCode,
           headers: fixture.baseline.headers,
           body: fixture.baseline.body,

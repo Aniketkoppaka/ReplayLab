@@ -341,6 +341,18 @@ export class InMemoryProjectStore implements ProjectStore {
     return this.formatEnvironment(env);
   }
 
+  public async getEnvironmentSecrets(projectId: string, environmentId: string) {
+    const env = this.environments.get(environmentId);
+    if (!env || env.projectId !== projectId) return null;
+    return {
+      id: env.id,
+      projectId: env.projectId,
+      baseUrl: env.baseUrl,
+      headers: { ...env.headers },
+      variables: env.variables.map((v) => ({ ...v })),
+    };
+  }
+
   public async createEnvironment(
     projectId: string,
     input: CreateEnvironmentInput
@@ -454,6 +466,12 @@ export class InMemoryProjectStore implements ProjectStore {
     const f = this.fixtures.get(fixtureId);
     if (!f || f.projectId !== projectId) return null;
     return this.formatFixture(f);
+  }
+
+  public async getCurrentBaselineId(projectId: string, fixtureId: string): Promise<string | null> {
+    const f = this.fixtures.get(fixtureId);
+    if (!f || f.projectId !== projectId) return null;
+    return f.currentBaseline ? f.currentBaseline.id : null;
   }
 
   public async createFixture(projectId: string, input: CreateFixtureInput): Promise<FixtureResponse> {

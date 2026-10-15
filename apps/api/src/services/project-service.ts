@@ -38,6 +38,19 @@ export interface ProjectStore {
   // Environments
   listEnvironments(projectId: string): Promise<EnvironmentResponse[]>;
   getEnvironment(projectId: string, environmentId: string): Promise<EnvironmentResponse | null>;
+  getEnvironmentSecrets(projectId: string, environmentId: string): Promise<{
+    id: string;
+    projectId: string;
+    baseUrl: string;
+    headers: Record<string, string>;
+    variables: Array<{
+      key: string;
+      value: string;
+      isSecret: boolean;
+      secretIv?: string | null;
+      secretAuthTag?: string | null;
+    }>;
+  } | null>;
   createEnvironment(projectId: string, input: CreateEnvironmentInput): Promise<EnvironmentResponse>;
   updateEnvironment(projectId: string, environmentId: string, input: UpdateEnvironmentInput): Promise<EnvironmentResponse>;
   deleteEnvironment(projectId: string, environmentId: string): Promise<void>;
@@ -45,6 +58,7 @@ export interface ProjectStore {
   // Fixtures
   listFixtures(projectId: string): Promise<FixtureResponse[]>;
   getFixture(projectId: string, fixtureId: string): Promise<FixtureResponse | null>;
+  getCurrentBaselineId(projectId: string, fixtureId: string): Promise<string | null>;
   createFixture(projectId: string, input: CreateFixtureInput): Promise<FixtureResponse>;
   updateFixture(projectId: string, fixtureId: string, input: UpdateFixtureInput): Promise<FixtureResponse>;
   updateBaseline(projectId: string, fixtureId: string, input: UpdateBaselineInput): Promise<FixtureResponse>;
@@ -140,6 +154,21 @@ export class ProjectService {
 
   public async removeMember(projectId: string, userId: string, memberId: string): Promise<void> {
     await this.assertPermission(projectId, userId, 'member:manage');
+
+    // Enforce Last-Owner Protection
+    const members = await this.store.listProjectMembers(projectId);
+    const targetMember = members.find((m) => m.id === memberId);
+    if (!targetMember) {
+      throw new ProjectAuthorizationError('NOT_FOUND', 'Project member not found');
+    }
+
+    if (targetMember.role === 'OWNER') {
+      const ownerCount = members.filter((m) => m.role === 'OWNER').length;
+      if (ownerCount <= 1) {
+        throw new Error('LAST_OWNER_PROTECTION: Cannot remove the last project owner');
+      }
+    }
+
     return this.store.removeProjectMember(projectId, memberId);
   }
 
