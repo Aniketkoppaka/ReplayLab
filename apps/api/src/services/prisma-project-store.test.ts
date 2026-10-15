@@ -81,6 +81,7 @@ describe('PrismaProjectStore Contract & Isolation Suite', () => {
   describe('Transactional Owner Protection Invariants', () => {
     it('prevents demoting the last owner in assignProjectMember', async () => {
       const mockTx = {
+        $executeRaw: async () => 1,
         user: {
           findUnique: async () => ({ id: 'usr_owner_1', email: 'owner@test.com', name: 'Owner' }),
         },
@@ -106,6 +107,7 @@ describe('PrismaProjectStore Contract & Isolation Suite', () => {
 
     it('prevents removing the last owner in removeProjectMember', async () => {
       const mockTx = {
+        $executeRaw: async () => 1,
         projectMember: {
           findFirst: async () => ({ id: 'pm_1', projectId: 'proj_1', userId: 'usr_owner_1', role: 'OWNER' }),
           count: async () => 1, // Only 1 owner
@@ -126,6 +128,7 @@ describe('PrismaProjectStore Contract & Isolation Suite', () => {
     it('allows removing an owner if multiple owners exist', async () => {
       let deleted = false;
       const mockTx = {
+        $executeRaw: async () => 1,
         projectMember: {
           findFirst: async () => ({ id: 'pm_1', projectId: 'proj_1', userId: 'usr_owner_1', role: 'OWNER' }),
           count: async () => 2, // 2 owners exist

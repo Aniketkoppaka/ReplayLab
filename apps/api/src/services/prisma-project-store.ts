@@ -217,6 +217,10 @@ export class PrismaProjectStore implements ProjectStore {
     input: AssignProjectMemberInput
   ): Promise<ProjectMemberResponse> {
     return this.prisma.$transaction(async (tx) => {
+      // 1. Serialize membership modifications per project with a row lock on the project
+      // to strictly prevent concurrent transactions from bypassing last-owner protection.
+      await tx.$executeRaw`SELECT "id" FROM "projects" WHERE "id" = ${projectId} FOR UPDATE`;
+
       let targetUser: { id: string; email: string; name: string } | null = null;
 
       if (input.userId) {
@@ -317,6 +321,10 @@ export class PrismaProjectStore implements ProjectStore {
     memberId: string
   ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
+      // 1. Serialize membership modifications per project with a row lock on the project
+      // to strictly prevent concurrent transactions from bypassing last-owner protection.
+      await tx.$executeRaw`SELECT "id" FROM "projects" WHERE "id" = ${projectId} FOR UPDATE`;
+
       // Find the member to be removed
       const member = await tx.projectMember.findFirst({
         where: { id: memberId, projectId },
