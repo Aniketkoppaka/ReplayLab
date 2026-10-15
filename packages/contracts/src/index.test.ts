@@ -262,6 +262,16 @@ describe('Contracts Domain Suite', () => {
       const parsed = ApiErrorResponseSchema.parse(errorResp);
       expect(parsed.error.code).toBe('VALIDATION_ERROR');
       expect(parsed.error.details?.[0]?.path).toBe('request.path');
+
+      // Validates ADMISSION_REJECTED code
+      const admissionErr = {
+        error: {
+          code: 'ADMISSION_REJECTED',
+          message: 'Server is currently at maximum capacity; please retry later',
+        },
+      };
+      const parsedAdmission = ApiErrorResponseSchema.parse(admissionErr);
+      expect(parsedAdmission.error.code).toBe('ADMISSION_REJECTED');
     });
   });
 });

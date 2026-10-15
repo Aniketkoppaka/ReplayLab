@@ -13,6 +13,7 @@ export const ApiErrorCodeSchema = z.enum([
   'SSRF_DESTINATION_BLOCKED',
   'EXECUTION_TIMEOUT',
   'TRANSPORT_ERROR',
+  'ADMISSION_REJECTED',
   'INTERNAL_ERROR',
 ]);
 

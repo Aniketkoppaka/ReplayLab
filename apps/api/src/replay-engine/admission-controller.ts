@@ -18,10 +18,15 @@ export interface ConcurrencyLimiterOptions {
   queueTimeoutMs?: number;
 }
 
+export type ConcurrencyAdmissionReason = 'SATURATED' | 'QUEUE_TIMEOUT' | 'CANCELLED';
+
 export class ConcurrencyAdmissionError extends Error {
-  constructor(message: string) {
+  public readonly reason: ConcurrencyAdmissionReason;
+
+  constructor(message: string, reason: ConcurrencyAdmissionReason = 'SATURATED') {
     super(message);
     this.name = 'ConcurrencyAdmissionError';
+    this.reason = reason;
   }
 }
 
@@ -30,6 +35,7 @@ interface QueuedTask<T> {
   resolve: (value: T | PromiseLike<T>) => void;
   reject: (reason?: unknown) => void;
   timer: NodeJS.Timeout | null;
+  signalCleanups?: () => void;
 }
 
 export class ConcurrencyAdmissionController {
@@ -63,10 +69,16 @@ export class ConcurrencyAdmissionController {
    * Executes an async operation with guaranteed permit acquisition and release.
    * If running tasks < maxConcurrent, immediately acquires a permit and runs.
    * If running tasks == maxConcurrent, places task into bounded wait queue.
-   * If queue is full, immediately rejects with ConcurrencyAdmissionError.
+   * If queue is full, immediately rejects with ConcurrencyAdmissionError ('SATURATED').
+   * If queued wait exceeds queueTimeoutMs, rejects with ConcurrencyAdmissionError ('QUEUE_TIMEOUT').
+   * If signal is aborted while in queue, rejects with ConcurrencyAdmissionError ('CANCELLED').
    * Permits are GUARANTEED to be released on success, timeout, network failure, or error.
    */
-  public async run<T>(fn: () => Promise<T>): Promise<T> {
+  public async run<T>(fn: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+    if (signal?.aborted) {
+      throw new ConcurrencyAdmissionError('CONCURRENCY_ABORTED: Task was aborted before admission', 'CANCELLED');
+    }
+
     if (this.runningCount < this.maxConcurrent) {
       this.runningCount++;
       try {
@@ -78,7 +90,8 @@ export class ConcurrencyAdmissionController {
 
     if (this.queue.length >= this.maxQueueSize) {
       throw new ConcurrencyAdmissionError(
-        `CONCURRENCY_LIMIT_EXCEEDED: Replay queue is saturated (${this.queue.length}/${this.maxQueueSize} queued, ${this.runningCount}/${this.maxConcurrent} active)`
+        `CONCURRENCY_LIMIT_EXCEEDED: Replay queue is saturated (${this.queue.length}/${this.maxQueueSize} queued, ${this.runningCount}/${this.maxConcurrent} active)`,
+        'SATURATED'
       );
     }
 
@@ -92,18 +105,44 @@ export class ConcurrencyAdmissionController {
         timer: null,
       };
 
-      timer = setTimeout(() => {
-        // Remove from queue
+      const cleanupTask = () => {
+        if (timer) clearTimeout(timer);
+        if (queuedTask.signalCleanups) queuedTask.signalCleanups();
         const idx = this.queue.indexOf(queuedTask);
         if (idx !== -1) {
           this.queue.splice(idx, 1);
+        }
+      };
+
+      timer = setTimeout(() => {
+        const idx = this.queue.indexOf(queuedTask);
+        if (idx !== -1) {
+          cleanupTask();
           reject(
             new ConcurrencyAdmissionError(
-              `CONCURRENCY_QUEUE_TIMEOUT: Waited longer than ${this.queueTimeoutMs}ms for execution permit`
+              `CONCURRENCY_QUEUE_TIMEOUT: Waited longer than ${this.queueTimeoutMs}ms for execution permit`,
+              'QUEUE_TIMEOUT'
             )
           );
         }
       }, this.queueTimeoutMs);
+
+      if (signal) {
+        const abortHandler = () => {
+          const idx = this.queue.indexOf(queuedTask);
+          if (idx !== -1) {
+            cleanupTask();
+            reject(
+              new ConcurrencyAdmissionError(
+                'CONCURRENCY_ABORTED: Task was cancelled while waiting in admission queue',
+                'CANCELLED'
+              )
+            );
+          }
+        };
+        signal.addEventListener('abort', abortHandler, { once: true });
+        queuedTask.signalCleanups = () => signal.removeEventListener('abort', abortHandler);
+      }
 
       queuedTask.timer = timer;
       this.queue.push(queuedTask);
@@ -118,6 +157,9 @@ export class ConcurrencyAdmissionController {
       if (nextTask) {
         if (nextTask.timer) {
           clearTimeout(nextTask.timer);
+        }
+        if (nextTask.signalCleanups) {
+          nextTask.signalCleanups();
         }
         this.runningCount++;
         // Execute detached from the calling context but ensuring permit release on completion
@@ -143,7 +185,8 @@ export class ConcurrencyAdmissionController {
       const task = this.queue.shift();
       if (task) {
         if (task.timer) clearTimeout(task.timer);
-        task.reject(new ConcurrencyAdmissionError('CONCURRENCY_CONTROLLER_RESET'));
+        if (task.signalCleanups) task.signalCleanups();
+        task.reject(new ConcurrencyAdmissionError('CONCURRENCY_CONTROLLER_RESET', 'CANCELLED'));
       }
     }
     this.runningCount = 0;

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import http from 'node:http';
 import zlib from 'node:zlib';
 import { executeSafeRequest } from './safe-dispatcher.js';
-import { executeFixtureReplay } from './replay-service.js';
+import { executeFixtureReplay, type ReplayExecutionResult } from './replay-service.js';
 import type { DnsLookupFn } from './target-validator.js';
 import { ConcurrencyAdmissionController } from './admission-controller.js';
 
@@ -178,7 +178,7 @@ describe('Safe Dispatcher & Replay Service (HTTP & Mocked/Local Network)', () =>
     expect(response.headers).toEqual({});
   });
 
-  it('rejects execution when replay admission controller is saturated', async () => {
+  it('rejects execution with ConcurrencyAdmissionError when replay admission controller is saturated', async () => {
     const miniLimiter = new ConcurrencyAdmissionController({
       maxConcurrent: 1,
       maxQueueSize: 0, // No queueing, rejects immediately when saturated
@@ -209,12 +209,19 @@ describe('Safe Dispatcher & Replay Service (HTTP & Mocked/Local Network)', () =>
       totalTimeoutMs: 500,
     });
 
-    const [r1, r2] = await Promise.all([p1, p2]);
+    // One succeeds to be admitted (fails on transport), while the other MUST reject with ConcurrencyAdmissionError
+    const results = await Promise.allSettled([p1, p2]);
+    const rejected = results.find(
+      (r): r is PromiseRejectedResult => r.status === 'rejected'
+    );
+    const fulfilled = results.find(
+      (r): r is PromiseFulfilledResult<ReplayExecutionResult> => r.status === 'fulfilled'
+    );
 
-    // One must succeed to run (or fail on transport), and the other must be rejected due to saturation
-    const saturated = [r1, r2].find((r) => r.errorMessage?.includes('concurrency saturation'));
-    expect(saturated).toBeDefined();
-    expect(saturated?.status).toBe('TRANSPORT_ERROR');
+    expect(rejected).toBeDefined();
+    expect(rejected?.reason.name).toBe('ConcurrencyAdmissionError');
+    expect(rejected?.reason.message).toContain('CONCURRENCY_LIMIT_EXCEEDED');
+    expect(fulfilled).toBeDefined();
   });
 
   it('enforces conservative response capture policy (null body by default)', async () => {

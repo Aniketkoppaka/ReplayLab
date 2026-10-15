@@ -90,4 +90,93 @@ describe('Concurrency Admission Controller (Resource Bounding)', () => {
     expect(limiter.running).toBe(0);
     expect(limiter.queued).toBe(0);
   });
+
+  it('guarantees strict FIFO execution order for queued requests', async () => {
+    const limiter = new ConcurrencyAdmissionController({
+      maxConcurrent: 1,
+      maxQueueSize: 10,
+    });
+
+    const executionOrder: number[] = [];
+    const blocker = () => new Promise((r) => setTimeout(r, 30));
+
+    // Fill capacity
+    const active = limiter.run(async () => {
+      await blocker();
+      executionOrder.push(0);
+    });
+
+    // Enqueue 3 tasks in order 1, 2, 3
+    const q1 = limiter.run(async () => {
+      executionOrder.push(1);
+    });
+    const q2 = limiter.run(async () => {
+      executionOrder.push(2);
+    });
+    const q3 = limiter.run(async () => {
+      executionOrder.push(3);
+    });
+
+    await Promise.all([active, q1, q2, q3]);
+    expect(executionOrder).toEqual([0, 1, 2, 3]);
+  });
+
+  it('proves that rejected work does not execute', async () => {
+    const limiter = new ConcurrencyAdmissionController({
+      maxConcurrent: 1,
+      maxQueueSize: 0, // No queue
+    });
+
+    let executed = false;
+    const taskThatMustNotRun = async () => {
+      executed = true;
+      return 'executed';
+    };
+
+    // Saturate with active task
+    const active = limiter.run(() => new Promise((r) => setTimeout(r, 50)));
+
+    // Second task rejected immediately
+    await expect(limiter.run(taskThatMustNotRun)).rejects.toThrow('CONCURRENCY_LIMIT_EXCEEDED');
+
+    await active;
+    expect(executed).toBe(false);
+  });
+
+  it('handles task cancellation via AbortSignal cleanly while queued without permit leakage', async () => {
+    const limiter = new ConcurrencyAdmissionController({
+      maxConcurrent: 1,
+      maxQueueSize: 5,
+    });
+
+    const controller = new AbortController();
+    const slowTask = () => new Promise((r) => setTimeout(r, 50));
+
+    // Active
+    const p1 = limiter.run(slowTask);
+
+    // Queued with abort controller
+    let queuedRan = false;
+    const p2 = limiter.run(async () => {
+      queuedRan = true;
+    }, controller.signal);
+
+    expect(limiter.queued).toBe(1);
+
+    // Cancel while queued
+    controller.abort();
+
+    await expect(p2).rejects.toThrow('CONCURRENCY_ABORTED');
+    expect(limiter.queued).toBe(0);
+
+    // Wait for active task to complete
+    await p1;
+    expect(queuedRan).toBe(false);
+    expect(limiter.running).toBe(0);
+
+    // Verify permits remain fully functional
+    const nextResult = await limiter.run(async () => 'ok');
+    expect(nextResult).toBe('ok');
+    expect(limiter.running).toBe(0);
+  });
 });

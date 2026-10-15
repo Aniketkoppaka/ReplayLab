@@ -4,7 +4,6 @@ import type { DnsLookupFn } from './target-validator.js';
 import {
   globalReplayLimiter,
   ConcurrencyAdmissionController,
-  ConcurrencyAdmissionError,
 } from './admission-controller.js';
 
 export interface FixtureExecutionInput {
@@ -38,6 +37,8 @@ export interface ReplayExecutionParams {
   totalTimeoutMs?: number;
   /** Concurrency limiter to use. Defaults to globalReplayLimiter */
   limiter?: ConcurrencyAdmissionController;
+  /** Optional cancellation signal */
+  signal?: AbortSignal;
   /**
    * Safe response capture policy:
    * Defaults to false (storing null body in result to prevent secret/data leaks).
@@ -109,144 +110,122 @@ export async function executeFixtureReplay(
 ): Promise<ReplayExecutionResult> {
   const limiter = params.limiter ?? globalReplayLimiter;
 
-  try {
-    return await limiter.run(async () => {
-      const startTime = Date.now();
+  return limiter.run(async () => {
+    const startTime = Date.now();
 
-      // Combine environment headers with fixture headers (fixture headers take precedence)
-      const combinedHeaders: Record<string, string> = {
-        ...(params.environmentHeaders ?? {}),
-        ...(params.request.headers ?? {}),
-      };
+    // Combine environment headers with fixture headers (fixture headers take precedence)
+    const combinedHeaders: Record<string, string> = {
+      ...(params.environmentHeaders ?? {}),
+      ...(params.request.headers ?? {}),
+    };
 
-      const dispatchOptions: DispatchOptions = {
-        method: params.request.method,
-        baseUrl: params.environmentBaseUrl,
-        path: params.request.path,
-        queryParams: params.request.queryParams,
-        headers: combinedHeaders,
-        body: params.request.body,
-        bodyType: params.request.bodyType,
-        connectTimeoutMs: params.connectTimeoutMs ?? 3000,
-        totalTimeoutMs: params.totalTimeoutMs ?? 15000,
-        dnsLookup: params.dnsLookup,
-        maxRedirects: 0, // Redirects disabled by default per security requirements
-      };
+    const dispatchOptions: DispatchOptions = {
+      method: params.request.method,
+      baseUrl: params.environmentBaseUrl,
+      path: params.request.path,
+      queryParams: params.request.queryParams,
+      headers: combinedHeaders,
+      body: params.request.body,
+      bodyType: params.request.bodyType,
+      connectTimeoutMs: params.connectTimeoutMs ?? 3000,
+      totalTimeoutMs: params.totalTimeoutMs ?? 15000,
+      dnsLookup: params.dnsLookup,
+      maxRedirects: 0, // Redirects disabled by default per security requirements
+    };
 
-      try {
-        const response: DispatchResponse = await executeSafeRequest(dispatchOptions);
+    try {
+      const response: DispatchResponse = await executeSafeRequest(dispatchOptions);
 
-        const isHttpError = response.statusCode >= 400;
-        let diffFound = false;
-        let diffDetails: DiffResult | null = null;
-        let status: ReplayOutcome = isHttpError ? 'HTTP_ERROR' : 'SUCCESS';
+      const isHttpError = response.statusCode >= 400;
+      let diffFound = false;
+      let diffDetails: DiffResult | null = null;
+      let status: ReplayOutcome = isHttpError ? 'HTTP_ERROR' : 'SUCCESS';
 
-        // Baseline comparison if baseline is configured
-        if (params.baseline) {
-          const statusCodeMatches = response.statusCode === params.baseline.statusCode;
+      // Baseline comparison if baseline is configured
+      if (params.baseline) {
+        const statusCodeMatches = response.statusCode === params.baseline.statusCode;
 
-          if (!statusCodeMatches) {
-            diffFound = true;
-            status = 'ASSERTION_FAILURE';
-            diffDetails = {
-              match: false,
-              differences: [
-                {
-                  path: '$statusCode',
-                  type: 'CHANGED',
-                  expected: params.baseline.statusCode,
-                  actual: response.statusCode,
-                },
-              ],
-            };
-          } else {
-            // Compare payload if present
-            if (params.baseline.body !== undefined && response.body !== undefined) {
-              diffDetails = compareJsonPayloads(
-                params.baseline.body,
-                response.body,
-                params.maskRules ?? []
-              );
-              if (!diffDetails.match) {
-                diffFound = true;
-                status = 'ASSERTION_FAILURE';
-              }
+        if (!statusCodeMatches) {
+          diffFound = true;
+          status = 'ASSERTION_FAILURE';
+          diffDetails = {
+            match: false,
+            differences: [
+              {
+                path: '$statusCode',
+                type: 'CHANGED',
+                expected: params.baseline.statusCode,
+                actual: response.statusCode,
+              },
+            ],
+          };
+        } else {
+          // Compare payload if present
+          if (params.baseline.body !== undefined && response.body !== undefined) {
+            diffDetails = compareJsonPayloads(
+              params.baseline.body,
+              response.body,
+              params.maskRules ?? []
+            );
+            if (!diffDetails.match) {
+              diffFound = true;
+              status = 'ASSERTION_FAILURE';
             }
           }
         }
-
-        // Conservative response capture policy:
-        // By default (captureResponseBody = false), body is null in ReplayExecutionResult
-        // to avoid persisting secret-bearing or raw external responses.
-        const persistedBody = params.captureResponseBody === true ? response.body : null;
-
-        return {
-          fixtureId: params.fixtureId,
-          projectId: params.projectId,
-          environmentId: params.environmentId,
-          baselineId: params.baseline?.id,
-          status,
-          httpStatusCode: response.statusCode,
-          headers: sanitizeHeaders(response.headers),
-          body: persistedBody,
-          durationMs: response.durationMs,
-          errorMessage: isHttpError ? `HTTP status ${response.statusCode} returned` : null,
-          diffFound,
-          diffDetails,
-        };
-      } catch (err: unknown) {
-        const durationMs = Date.now() - startTime;
-        const errorMsg = err instanceof Error ? err.message : 'Unknown execution failure';
-
-        let status: ReplayOutcome = 'TRANSPORT_ERROR';
-        let safeMessage = 'A network transport error occurred while dispatching the request.';
-
-        if (errorMsg.includes('SSRF_') || errorMsg.includes('restricted IP')) {
-          status = 'SSRF_BLOCKED';
-          safeMessage = 'Target destination was blocked by security policy (SSRF protection).';
-        } else if (errorMsg.includes('TIMEOUT')) {
-          status = 'TIMEOUT';
-          safeMessage = 'Execution timed out waiting for target response.';
-        } else if (errorMsg.includes('PAYLOAD_LIMIT_EXCEEDED')) {
-          status = 'TRANSPORT_ERROR';
-          safeMessage = 'Response body exceeded maximum payload limit.';
-        }
-
-        return {
-          fixtureId: params.fixtureId,
-          projectId: params.projectId,
-          environmentId: params.environmentId,
-          baselineId: params.baseline?.id,
-          status,
-          httpStatusCode: null, // Null on transport/SSRF failure (never collapse into HTTP status)
-          headers: {},
-          body: null,
-          durationMs,
-          errorMessage: safeMessage,
-          diffFound: false,
-          diffDetails: null,
-        };
       }
-    });
-  } catch (outerErr: unknown) {
-    let safeMessage = 'Execution could not be admitted to run.';
-    if (outerErr instanceof ConcurrencyAdmissionError) {
-      safeMessage = 'Replay execution rejected due to concurrency saturation.';
-    }
 
-    return {
-      fixtureId: params.fixtureId,
-      projectId: params.projectId,
-      environmentId: params.environmentId,
-      baselineId: params.baseline?.id,
-      status: 'TRANSPORT_ERROR',
-      httpStatusCode: null,
-      headers: {},
-      body: null,
-      durationMs: 0,
-      errorMessage: safeMessage,
-      diffFound: false,
-      diffDetails: null,
-    };
-  }
+      // Conservative response capture policy:
+      // By default (captureResponseBody = false), body is null in ReplayExecutionResult
+      // to avoid persisting secret-bearing or raw external responses.
+      const persistedBody = params.captureResponseBody === true ? response.body : null;
+
+      return {
+        fixtureId: params.fixtureId,
+        projectId: params.projectId,
+        environmentId: params.environmentId,
+        baselineId: params.baseline?.id,
+        status,
+        httpStatusCode: response.statusCode,
+        headers: sanitizeHeaders(response.headers),
+        body: persistedBody,
+        durationMs: response.durationMs,
+        errorMessage: isHttpError ? `HTTP status ${response.statusCode} returned` : null,
+        diffFound,
+        diffDetails,
+      };
+    } catch (err: unknown) {
+      const durationMs = Date.now() - startTime;
+      const errorMsg = err instanceof Error ? err.message : 'Unknown execution failure';
+
+      let status: ReplayOutcome = 'TRANSPORT_ERROR';
+      let safeMessage = 'A network transport error occurred while dispatching the request.';
+
+      if (errorMsg.includes('SSRF_') || errorMsg.includes('restricted IP')) {
+        status = 'SSRF_BLOCKED';
+        safeMessage = 'Target destination was blocked by security policy (SSRF protection).';
+      } else if (errorMsg.includes('TIMEOUT')) {
+        status = 'TIMEOUT';
+        safeMessage = 'Execution timed out waiting for target response.';
+      } else if (errorMsg.includes('PAYLOAD_LIMIT_EXCEEDED')) {
+        status = 'TRANSPORT_ERROR';
+        safeMessage = 'Response body exceeded maximum payload limit.';
+      }
+
+      return {
+        fixtureId: params.fixtureId,
+        projectId: params.projectId,
+        environmentId: params.environmentId,
+        baselineId: params.baseline?.id,
+        status,
+        httpStatusCode: null, // Null on transport/SSRF failure (never collapse into HTTP status)
+        headers: {},
+        body: null,
+        durationMs,
+        errorMessage: safeMessage,
+        diffFound: false,
+        diffDetails: null,
+      };
+    }
+  }, params.signal);
 }
