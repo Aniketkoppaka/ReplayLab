@@ -145,6 +145,29 @@
      - Executed full workspace lint (`npx pnpm -r run lint`): 0 errors, 0 warnings across all 5 workspace projects.
      - Executed full workspace typecheck (`npx pnpm -r run typecheck`): 0 errors across all 5 workspace projects.
      - Executed full workspace tests (`npx pnpm -r run test`): 146 passed tests (130 backend + 16 web, 25 in web total), 22 live PG tests skipped without URI, 0 failures.
+## Phase 5.4 — Regression Suite Dashboard & Orchestration UI
+- **Status**: Completed & Verified
+- **Completed Actions**:
+  1. **Suite Management & Ordering Interface (`/suites`)**:
+     - Built `SuiteEditorModal` in `apps/web/src/components/suite/suite-editor-modal.tsx` supporting regression suite creation and editing via `POST /projects/:projectId/suites` and `PATCH /projects/:projectId/suites/:suiteId`.
+     - Supports adding fixtures from the project fixture library, sequential reordering (`Move Up` / `Move Down`), and deleting items with order normalization.
+     - Supports per-fixture differential mask rules (`DifferentialMaskRuleSchema`) with configurable JSON paths (e.g. `$.timestamp`) and actions (`IGNORE` or `TYPE_MATCH`).
+  2. **Multi-Fixture Execution Orchestration**:
+     - Built `SuiteRunModal` in `apps/web/src/components/suite/suite-run-modal.tsx` connecting to `POST /projects/:projectId/suites/:suiteId/run`.
+     - Accurately captures synchronous execution semantics: displays live execution metrics, total pass/fail counts, total duration, and exact backend outcome status.
+     - Displays per-fixture execution items with HTTP status codes, durations, and expandable `VisualDiffViewer` components for inspecting child assertion discrepancies.
+  3. **Suite History Drawer**:
+     - Built `SuiteHistoryDrawer` in `apps/web/src/components/suite/suite-history-drawer.tsx` connecting to `GET /projects/:projectId/suites/:suiteId/runs`.
+     - Displays historical suite runs with timestamps, duration metrics, passed/failed fixture ratios, and outcome status badges.
+  4. **Security & Defensive Boundaries**:
+     - Enforces project boundary scoping: suites and fixtures cannot be linked across disparate projects.
+     - Response bodies remain omitted by default, preventing sensitive data exposure and memory consumption.
+     - Redacted expected/actual values in differential comparisons are strictly preserved.
+  5. **Automated Verification**:
+     - Added comprehensive unit tests in `apps/web/src/lib/suites.test.ts` (9 tests) verifying mask rules, suite creation inputs, trigger parameters, and execution summary schemas (34 tests passing in `apps/web`).
+     - Executed full workspace lint (`npx pnpm -r run lint`): 0 errors, 0 warnings across all 5 workspace projects.
+     - Executed full workspace typecheck (`npx pnpm -r run typecheck`): 0 errors across all 5 workspace projects.
+     - Executed full workspace tests (`npx pnpm -r run test`): 155 passed tests (130 backend + 25 web, 34 total in web), 22 live PG tests skipped without URI, 0 failures.
      - Executed production build (`npx pnpm -F @replaylab/web run build`): All 11 Next.js App Router routes statically prerendered cleanly.
 
 
