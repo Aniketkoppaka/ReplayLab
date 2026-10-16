@@ -1,6 +1,7 @@
 import { executeSafeRequest, type DispatchResponse, type DispatchOptions } from './safe-dispatcher.js';
 import { compareJsonPayloads, type MaskRule, type DiffResult } from './comparison-engine.js';
 import type { DnsLookupFn } from './target-validator.js';
+import { isSensitiveKey, sanitizeCapturedBody, sanitizeDiffResult } from './redaction.js';
 import {
   globalReplayLimiter,
   ConcurrencyAdmissionController,
@@ -91,7 +92,7 @@ const SENSITIVE_HEADER_KEYS = [
 function sanitizeHeaders(headers: Record<string, string>): Record<string, string> {
   const sanitized: Record<string, string> = {};
   for (const [key, value] of Object.entries(headers)) {
-    if (SENSITIVE_HEADER_KEYS.includes(key.toLowerCase())) {
+    if (SENSITIVE_HEADER_KEYS.includes(key.toLowerCase()) || isSensitiveKey(key)) {
       sanitized[key] = '[REDACTED]';
     } else {
       sanitized[key] = value;
@@ -178,7 +179,8 @@ export async function executeFixtureReplay(
       // Conservative response capture policy:
       // By default (captureResponseBody = false), body is null in ReplayExecutionResult
       // to avoid persisting secret-bearing or raw external responses.
-      const persistedBody = params.captureResponseBody === true ? response.body : null;
+      const persistedBody =
+        params.captureResponseBody === true ? sanitizeCapturedBody(response.body) : null;
 
       return {
         fixtureId: params.fixtureId,
@@ -192,7 +194,8 @@ export async function executeFixtureReplay(
         durationMs: response.durationMs,
         errorMessage: isHttpError ? `HTTP status ${response.statusCode} returned` : null,
         diffFound,
-        diffDetails,
+        // Diffs embed response values, so they are redacted/bounded independent of capture opt-in.
+        diffDetails: sanitizeDiffResult(diffDetails),
       };
     } catch (err: unknown) {
       const durationMs = Date.now() - startTime;

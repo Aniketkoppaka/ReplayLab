@@ -5,3 +5,4 @@ export * from './comparison-engine.js';
 export * from './replay-service.js';
 export * from './admission-controller.js';
 
+export * from './redaction.js';

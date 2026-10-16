@@ -196,8 +196,18 @@ export class InMemoryProjectStore implements ProjectStore {
     return { ...proj };
   }
 
-  public async deleteProject(projectId: string): Promise<void> {
+  public async deleteProject(projectId: string, actorUserId?: string): Promise<void> {
     this.projects.delete(projectId);
+    if (actorUserId) {
+      await this.createAuditLog({
+        projectId: null,
+        userId: actorUserId,
+        action: 'PROJECT_DELETED',
+        targetType: 'Project',
+        targetId: projectId,
+        metadata: { projectId },
+      });
+    }
     // Cascade delete in memory
     for (const [id, m] of this.members.entries()) {
       if (m.projectId === projectId) this.members.delete(id);
@@ -243,6 +253,25 @@ export class InMemoryProjectStore implements ProjectStore {
   }
 
   public async assignProjectMember(
+    projectId: string,
+    input: AssignProjectMemberInput,
+    actorUserId?: string
+  ): Promise<ProjectMemberResponse> {
+    const result = await this.assignProjectMemberInner(projectId, input);
+    if (actorUserId) {
+      await this.createAuditLog({
+        projectId,
+        userId: actorUserId,
+        action: 'MEMBER_ASSIGNED',
+        targetType: 'ProjectMember',
+        targetId: result.id,
+        metadata: { assignedUserId: result.userId, role: result.role },
+      });
+    }
+    return result;
+  }
+
+  private async assignProjectMemberInner(
     projectId: string,
     input: AssignProjectMemberInput
   ): Promise<ProjectMemberResponse> {
@@ -325,7 +354,7 @@ export class InMemoryProjectStore implements ProjectStore {
     };
   }
 
-  public async removeProjectMember(projectId: string, memberId: string): Promise<void> {
+  public async removeProjectMember(projectId: string, memberId: string, actorUserId?: string): Promise<void> {
     const member = this.members.get(memberId);
     if (!member || member.projectId !== projectId) {
       throw new Error('MEMBER_NOT_FOUND: Project member not found');
@@ -341,6 +370,16 @@ export class InMemoryProjectStore implements ProjectStore {
     }
 
     this.members.delete(memberId);
+    if (actorUserId) {
+      await this.createAuditLog({
+        projectId,
+        userId: actorUserId,
+        action: 'MEMBER_REMOVED',
+        targetType: 'ProjectMember',
+        targetId: memberId,
+        metadata: { memberId, removedUserId: member.userId },
+      });
+    }
   }
 
   // --- Environments ---
@@ -487,6 +526,19 @@ export class InMemoryProjectStore implements ProjectStore {
     return this.formatFixture(f);
   }
 
+  public async getBaselineSnapshot(projectId: string, fixtureId: string) {
+    const f = this.fixtures.get(fixtureId);
+    if (!f || f.projectId !== projectId || !f.currentBaseline) return null;
+    const b = f.currentBaseline;
+    return {
+      id: b.id,
+      statusCode: b.statusCode,
+      headers: { ...b.headers },
+      bodyType: b.bodyType as 'NONE' | 'JSON' | 'TEXT',
+      body: b.body,
+    };
+  }
+
   public async getCurrentBaselineId(projectId: string, fixtureId: string): Promise<string | null> {
     const f = this.fixtures.get(fixtureId);
     if (!f || f.projectId !== projectId) return null;
@@ -565,7 +617,8 @@ export class InMemoryProjectStore implements ProjectStore {
   public async updateBaseline(
     projectId: string,
     fixtureId: string,
-    input: UpdateBaselineInput
+    input: UpdateBaselineInput,
+    actorUserId?: string
   ): Promise<FixtureResponse> {
     const f = this.fixtures.get(fixtureId);
     if (!f || f.projectId !== projectId) throw new Error('Fixture not found');
@@ -585,6 +638,20 @@ export class InMemoryProjectStore implements ProjectStore {
     f.currentBaseline = newBaseline;
     f.baselineHistory.push(newBaseline);
     f.updatedAt = now;
+    if (actorUserId) {
+      await this.createAuditLog({
+        projectId,
+        userId: actorUserId,
+        action: 'BASELINE_UPDATED',
+        targetType: 'Fixture',
+        targetId: fixtureId,
+        metadata: {
+          baselineId: newBaseline.id,
+          statusCode: input.baseline.statusCode,
+          bodyType: input.baseline.bodyType ?? 'NONE',
+        },
+      });
+    }
 
     return this.formatFixture(f);
   }

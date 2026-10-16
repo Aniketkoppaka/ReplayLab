@@ -28,12 +28,22 @@ export interface ProjectStore {
   getProject(projectId: string): Promise<ProjectResponse | null>;
   createProject(userId: string, input: CreateProjectInput): Promise<ProjectResponse>;
   updateProject(projectId: string, input: UpdateProjectInput): Promise<ProjectResponse>;
-  deleteProject(projectId: string): Promise<void>;
+  /**
+   * When `actorUserId` is provided, the PROJECT_DELETED audit record is written in the
+   * same transaction as the deletion (all-or-nothing).
+   */
+  deleteProject(projectId: string, actorUserId?: string): Promise<void>;
 
   // Members
   listProjectMembers(projectId: string): Promise<ProjectMemberResponse[]>;
-  assignProjectMember(projectId: string, input: AssignProjectMemberInput): Promise<ProjectMemberResponse>;
-  removeProjectMember(projectId: string, memberId: string): Promise<void>;
+  /** When `actorUserId` is provided, MEMBER_ASSIGNED is audited atomically with the change. */
+  assignProjectMember(
+    projectId: string,
+    input: AssignProjectMemberInput,
+    actorUserId?: string
+  ): Promise<ProjectMemberResponse>;
+  /** When `actorUserId` is provided, MEMBER_REMOVED is audited atomically with the change. */
+  removeProjectMember(projectId: string, memberId: string, actorUserId?: string): Promise<void>;
 
   // Environments
   listEnvironments(projectId: string): Promise<EnvironmentResponse[]>;
@@ -59,9 +69,29 @@ export interface ProjectStore {
   listFixtures(projectId: string): Promise<FixtureResponse[]>;
   getFixture(projectId: string, fixtureId: string): Promise<FixtureResponse | null>;
   getCurrentBaselineId(projectId: string, fixtureId: string): Promise<string | null>;
+  /**
+   * Returns the latest immutable baseline snapshot (id AND content) from a single read, so the
+   * id recorded on a ReplayRun always identifies the exact content used for comparison.
+   */
+  getBaselineSnapshot(
+    projectId: string,
+    fixtureId: string
+  ): Promise<{
+    id: string;
+    statusCode: number;
+    headers: Record<string, string>;
+    bodyType: 'NONE' | 'JSON' | 'TEXT';
+    body: unknown;
+  } | null>;
   createFixture(projectId: string, input: CreateFixtureInput): Promise<FixtureResponse>;
   updateFixture(projectId: string, fixtureId: string, input: UpdateFixtureInput): Promise<FixtureResponse>;
-  updateBaseline(projectId: string, fixtureId: string, input: UpdateBaselineInput): Promise<FixtureResponse>;
+  /** When `actorUserId` is provided, BASELINE_UPDATED is audited atomically with the new snapshot. */
+  updateBaseline(
+    projectId: string,
+    fixtureId: string,
+    input: UpdateBaselineInput,
+    actorUserId?: string
+  ): Promise<FixtureResponse>;
   deleteFixture(projectId: string, fixtureId: string): Promise<void>;
 
   // Suites
@@ -252,7 +282,7 @@ export class ProjectService {
 
   public async deleteProject(projectId: string, userId: string): Promise<void> {
     await this.assertPermission(projectId, userId, 'project:delete');
-    return this.store.deleteProject(projectId);
+    return this.store.deleteProject(projectId, userId);
   }
 
   // --- Member Management ---
@@ -267,7 +297,7 @@ export class ProjectService {
     input: AssignProjectMemberInput
   ): Promise<ProjectMemberResponse> {
     await this.assertPermission(projectId, userId, 'member:manage');
-    return this.store.assignProjectMember(projectId, input);
+    return this.store.assignProjectMember(projectId, input, userId);
   }
 
   public async removeMember(projectId: string, userId: string, memberId: string): Promise<void> {
@@ -287,7 +317,7 @@ export class ProjectService {
       }
     }
 
-    return this.store.removeProjectMember(projectId, memberId);
+    return this.store.removeProjectMember(projectId, memberId, userId);
   }
 
   // --- Environments ---
@@ -362,7 +392,7 @@ export class ProjectService {
     input: UpdateBaselineInput
   ): Promise<FixtureResponse> {
     await this.assertPermission(projectId, userId, 'baseline:update');
-    return this.store.updateBaseline(projectId, fixtureId, input);
+    return this.store.updateBaseline(projectId, fixtureId, input, userId);
   }
 
   public async deleteFixture(projectId: string, fixtureId: string, userId: string): Promise<void> {

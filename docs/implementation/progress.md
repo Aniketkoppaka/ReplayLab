@@ -45,10 +45,32 @@
   5. **Input Validation**:
      - Replaced ad-hoc string validation with `TriggerSuiteExecutionInputSchema.parse(req.body)`.
      - Added optional `captureResponseBody` to `TriggerReplayInputSchema` and `TriggerSuiteExecutionInputSchema`.
-  6. **Automated Verification**:
-     - Added unit/integration regression tests in `api.test.ts` (31 passed).
-     - Added live Supabase PostgreSQL foreign key linkage test in `postgres-live.test.ts` (14 passed).
-     - Added real HTTP mock server test suite in `services/orchestration-e2e.test.ts` (4 passed).
-     - Verified clean quality gates: lint (0 warnings), typecheck (0 errors), build (100% clean), test (129 passed).
+
+## Phase 4 Audit Closure & Final Readiness Review
+- **Status**: Completed & Verified
+- **Evidence-Based Acceptance**:
+  1. **Atomic Mutation & Audit Boundaries**:
+     - Implemented transactional audit logging for `PROJECT_DELETED`, `MEMBER_ASSIGNED`, `MEMBER_REMOVED`, and `BASELINE_UPDATED` within `PrismaProjectStore`'s interactive transactions (`this.prisma.$transaction`).
+     - Verified live PostgreSQL rollback semantics: if audit record creation fails (e.g. FK constraint violation), the parent mutation (user addition, member modification, baseline snapshot, or project deletion) rolls back cleanly with zero orphaned mutations.
+     - Documented and tested best-effort audit semantics for replay and suite execution where outbound network calls have already executed and cannot be undone.
+  2. **Cancellation and Suite Lifecycle**:
+     - Connected client disconnect event (`res.on('close')`) to `AbortController` in `api-router.ts`.
+     - Proved cancellation halts subsequent fixture execution immediately, releases concurrency permits (`globalReplayLimiter.running == 0`), persists a durable terminal `SuiteRun` (`status: 'TIMEOUT'`), flags `cancelled: true` in audit metadata, and leaves prior completed child `ReplayRun` records intact.
+  3. **Response Capture Security**:
+     - Created `redaction.ts` enforcing recursive key sanitization (`[REDACTED]`), depth limits, and 256KB payload truncation (`[TRUNCATED]`).
+     - Ensured differential comparison results (`diffDetails`) sanitize sensitive expected/actual field values regardless of whether body capture was opted in.
+     - Proved safe defaults (body is `null` by default; error messages and transport failures never leak tokens or private network IPs).
+  4. **Baseline Traceability & Suite Consistency**:
+     - Implemented `getBaselineSnapshot` performing a single atomic read of both the baseline snapshot content and its immutable ID.
+     - Verified that concurrent baseline updates cannot cause discrepancy between compared contents and the recorded `baselineId`.
+     - Proved suite mask rules (`IGNORE`) are applied to child differential comparisons and that child runs link to the parent `SuiteRun`.
+  5. **Quality Gates & Categorized Verification**:
+     - Unit tests: 85 passed (crypto, target-validator, ip-validator, comparison-engine, admission-controller, token-verifier, response-capture-security).
+     - In-memory store tests: 41 passed (`api.test.ts`, `audit-closure.test.ts`).
+     - HTTP integration tests: 4 passed (`orchestration-e2e.test.ts`).
+     - Live Supabase PostgreSQL tests: 22 passed across `postgres-live.test.ts` (18 passed) and `postgres-live-lifecycle.test.ts` (4 passed).
+     - Total: 152 passed tests across 15 test files (0 failures, 0 skipped).
+     - Strict linting (0 warnings) and strict typecheck (0 errors) across all packages.
+     - Production build succeeded cleanly across `@replaylab/contracts`, `@replaylab/db`, `@replaylab/api`, and `@replaylab/web`.
 
 

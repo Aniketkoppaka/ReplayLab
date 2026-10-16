@@ -621,4 +621,125 @@ conditionalDescribe('Live Supabase PostgreSQL Acceptance & Concurrency Suite', {
       expect(dbRun?.suiteRunId).toBe(suiteRun.id);
     });
   });
+  describe('6. Atomic mutation + audit (live PostgreSQL)', () => {
+    let p4ProjectId: string;
+    let p4FixtureId: string;
+
+    beforeAll(async () => {
+      const proj = await store.createProject(userOwnerA.id, { name: 'Atomic Audit Project' });
+      createdProjectIds.push(proj.id);
+      p4ProjectId = proj.id;
+      const fx = await store.createFixture(p4ProjectId, {
+        name: 'Atomic Fixture',
+        tags: [],
+        request: { method: 'GET', path: '/atomic', headers: {}, queryParams: {}, bodyType: 'NONE' },
+        baseline: { statusCode: 200, headers: {}, bodyType: 'JSON', body: { initial: true } },
+      });
+      p4FixtureId = fx.id;
+    });
+    // An actor id that does not exist violates the audit_logs.userId FK, forcing the audit insert
+    // to fail INSIDE the transaction without any mocking. The mutation must then roll back.
+    const ghostActor = `usr_ghost_${Date.now()}`;
+
+    it('baseline update + BASELINE_UPDATED commit atomically; audit failure rolls back the snapshot', async () => {
+      const before = await prisma.fixtureBaselineHistory.count({ where: { fixtureId: p4FixtureId } });
+      const beforeSnap = await store.getBaselineSnapshot(p4ProjectId, p4FixtureId);
+
+      await expect(
+        store.updateBaseline(
+          p4ProjectId,
+          p4FixtureId,
+          { baseline: { statusCode: 201, headers: {}, bodyType: 'JSON', body: { rolledBack: true } } },
+          ghostActor
+        )
+      ).rejects.toThrow();
+
+      expect(await prisma.fixtureBaselineHistory.count({ where: { fixtureId: p4FixtureId } })).toBe(before);
+      expect(await store.getBaselineSnapshot(p4ProjectId, p4FixtureId)).toEqual(beforeSnap);
+
+      // Success path: snapshot + audit both present, audit references the exact snapshot id.
+      await store.updateBaseline(
+        p4ProjectId,
+        p4FixtureId,
+        { baseline: { statusCode: 202, headers: {}, bodyType: 'JSON', body: { committed: true } } },
+        userOwnerA.id
+      );
+      const snap = await store.getBaselineSnapshot(p4ProjectId, p4FixtureId);
+      expect(snap?.statusCode).toBe(202);
+      expect(snap?.body).toEqual({ committed: true });
+      const audit = await prisma.auditLog.findFirst({
+        where: { projectId: p4ProjectId, action: 'BASELINE_UPDATED', targetId: p4FixtureId },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect((audit?.metadata as { baselineId?: string }).baselineId).toBe(snap?.id);
+    });
+
+    it('baseline history rows cannot be altered through the store API (append-only)', async () => {
+      const rows = await prisma.fixtureBaselineHistory.findMany({
+        where: { fixtureId: p4FixtureId },
+        orderBy: { createdAt: 'asc' },
+      });
+      expect(rows.length).toBeGreaterThanOrEqual(2);
+      const firstBody = JSON.stringify(rows[0]!.body);
+      await store.updateBaseline(
+        p4ProjectId,
+        p4FixtureId,
+        { baseline: { statusCode: 203, headers: {}, bodyType: 'JSON', body: { another: true } } },
+        userOwnerA.id
+      );
+      const again = await prisma.fixtureBaselineHistory.findUnique({ where: { id: rows[0]!.id } });
+      expect(JSON.stringify(again!.body)).toBe(firstBody);
+    });
+
+    it('member assign/remove + audit are atomic; audit failure rolls back membership and user creation', async () => {
+      const newUserId = `usr_atomic_${Date.now()}`;
+
+      await expect(
+        store.assignProjectMember(p4ProjectId, { userId: newUserId, role: 'VIEWER' }, ghostActor)
+      ).rejects.toThrow();
+      expect((await store.listProjectMembers(p4ProjectId)).some((m) => m.userId === newUserId)).toBe(false);
+      expect(await prisma.user.findUnique({ where: { id: newUserId } })).toBeNull();
+
+      const member = await store.assignProjectMember(
+        p4ProjectId,
+        { userId: newUserId, role: 'VIEWER' },
+        userOwnerA.id
+      );
+      expect(
+        await prisma.auditLog.count({
+          where: { projectId: p4ProjectId, action: 'MEMBER_ASSIGNED', targetId: member.id },
+        })
+      ).toBe(1);
+
+      await expect(store.removeProjectMember(p4ProjectId, member.id, ghostActor)).rejects.toThrow();
+      expect((await store.listProjectMembers(p4ProjectId)).some((m) => m.id === member.id)).toBe(true);
+
+      await store.removeProjectMember(p4ProjectId, member.id, userOwnerA.id);
+      expect((await store.listProjectMembers(p4ProjectId)).some((m) => m.id === member.id)).toBe(false);
+      expect(
+        await prisma.auditLog.count({
+          where: { projectId: p4ProjectId, action: 'MEMBER_REMOVED', targetId: member.id },
+        })
+      ).toBe(1);
+      await prisma.user.delete({ where: { id: newUserId } }).catch(() => undefined);
+    });
+
+    it('project delete + PROJECT_DELETED commit atomically; audit failure keeps the project', async () => {
+      const project = await store.createProject(userOwnerA.id, { name: 'Atomic Delete Probe' });
+      createdProjectIds.push(project.id);
+
+      await expect(store.deleteProject(project.id, ghostActor)).rejects.toThrow();
+      expect(await store.getProject(project.id)).not.toBeNull();
+
+      await store.deleteProject(project.id, userOwnerA.id);
+      expect(await store.getProject(project.id)).toBeNull();
+      const audit = await prisma.auditLog.findFirst({
+        where: { action: 'PROJECT_DELETED', targetId: project.id },
+      });
+      expect(audit).not.toBeNull();
+      expect(audit!.projectId).toBeNull();
+      expect(audit!.userId).toBe(userOwnerA.id);
+      await prisma.auditLog.deleteMany({ where: { action: 'PROJECT_DELETED', targetId: project.id } });
+    });
+  });
 });

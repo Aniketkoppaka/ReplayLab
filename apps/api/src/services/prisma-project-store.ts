@@ -177,9 +177,24 @@ export class PrismaProjectStore implements ProjectStore {
     };
   }
 
-  public async deleteProject(projectId: string): Promise<void> {
-    await this.prisma.project.delete({
-      where: { id: projectId },
+  public async deleteProject(projectId: string, actorUserId?: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.project.delete({
+        where: { id: projectId },
+      });
+      if (actorUserId) {
+        // projectId is null because the project row (and its cascaded audit rows) no longer exists.
+        await tx.auditLog.create({
+          data: {
+            projectId: null,
+            userId: actorUserId,
+            action: 'PROJECT_DELETED',
+            targetType: 'Project',
+            targetId: projectId,
+            metadata: { projectId },
+          },
+        });
+      }
     });
   }
 
@@ -215,7 +230,8 @@ export class PrismaProjectStore implements ProjectStore {
 
   public async assignProjectMember(
     projectId: string,
-    input: AssignProjectMemberInput
+    input: AssignProjectMemberInput,
+    actorUserId?: string
   ): Promise<ProjectMemberResponse> {
     return this.prisma.$transaction(async (tx) => {
       // 1. Serialize membership modifications per project with a row lock on the project
@@ -296,6 +312,19 @@ export class PrismaProjectStore implements ProjectStore {
         include: { user: true },
       });
 
+      if (actorUserId) {
+        await tx.auditLog.create({
+          data: {
+            projectId,
+            userId: actorUserId,
+            action: 'MEMBER_ASSIGNED',
+            targetType: 'ProjectMember',
+            targetId: member.id,
+            metadata: { assignedUserId: member.userId, role: member.role },
+          },
+        });
+      }
+
       return {
         id: member.id,
         projectId: member.projectId,
@@ -319,7 +348,8 @@ export class PrismaProjectStore implements ProjectStore {
 
   public async removeProjectMember(
     projectId: string,
-    memberId: string
+    memberId: string,
+    actorUserId?: string
   ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       // 1. Serialize membership modifications per project with a row lock on the project
@@ -347,6 +377,19 @@ export class PrismaProjectStore implements ProjectStore {
       await tx.projectMember.delete({
         where: { id: memberId },
       });
+
+      if (actorUserId) {
+        await tx.auditLog.create({
+          data: {
+            projectId,
+            userId: actorUserId,
+            action: 'MEMBER_REMOVED',
+            targetType: 'ProjectMember',
+            targetId: memberId,
+            metadata: { memberId, removedUserId: member.userId },
+          },
+        });
+      }
     });
   }
 
@@ -553,11 +596,27 @@ export class PrismaProjectStore implements ProjectStore {
   ): Promise<string | null> {
     const history = await this.prisma.fixtureBaselineHistory.findFirst({
       where: { fixtureId, fixture: { projectId } },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       select: { id: true },
     });
 
     return history ? history.id : null;
+  }
+
+  public async getBaselineSnapshot(projectId: string, fixtureId: string) {
+    // Single read of the immutable history row: id and content cannot disagree.
+    const row = await this.prisma.fixtureBaselineHistory.findFirst({
+      where: { fixtureId, fixture: { projectId } },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
+    if (!row) return null;
+    return {
+      id: row.id,
+      statusCode: row.statusCode,
+      headers: (row.headers ?? {}) as Record<string, string>,
+      bodyType: row.bodyType as 'NONE' | 'JSON' | 'TEXT',
+      body: row.body as unknown,
+    };
   }
 
   public async createFixture(
@@ -639,7 +698,8 @@ export class PrismaProjectStore implements ProjectStore {
   public async updateBaseline(
     projectId: string,
     fixtureId: string,
-    input: UpdateBaselineInput
+    input: UpdateBaselineInput,
+    actorUserId?: string
   ): Promise<FixtureResponse> {
     return this.prisma.$transaction(async (tx) => {
       const fixture = await tx.fixture.findFirst({
@@ -648,7 +708,7 @@ export class PrismaProjectStore implements ProjectStore {
       if (!fixture) throw new Error('Fixture not found');
 
       // 1. Create immutable snapshot in baseline history
-      await tx.fixtureBaselineHistory.create({
+      const snapshot = await tx.fixtureBaselineHistory.create({
         data: {
           fixtureId,
           statusCode: input.baseline.statusCode,
@@ -670,6 +730,23 @@ export class PrismaProjectStore implements ProjectStore {
           baselineUpdatedAt: new Date(),
         },
       });
+
+      if (actorUserId) {
+        await tx.auditLog.create({
+          data: {
+            projectId,
+            userId: actorUserId,
+            action: 'BASELINE_UPDATED',
+            targetType: 'Fixture',
+            targetId: fixtureId,
+            metadata: {
+              baselineId: snapshot.id,
+              statusCode: input.baseline.statusCode,
+              bodyType: input.baseline.bodyType ?? 'NONE',
+            },
+          },
+        });
+      }
 
       return this.mapFixture(updated);
     });

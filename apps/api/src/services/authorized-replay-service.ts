@@ -89,14 +89,17 @@ export class AuthorizedReplayService {
     }
 
     // 4. Construct execution parameters using authorized baseline
-    const currentBaselineId = await this.store.getCurrentBaselineId(projectId, fixtureId);
-    const baselineSnapshot = fixture.baseline
+    // Single read: baseline id and content come from the same immutable history row, so a
+    // concurrent baseline update cannot make the recorded id disagree with the compared content.
+    const snapshotRow = await this.store.getBaselineSnapshot(projectId, fixtureId);
+    const currentBaselineId = snapshotRow?.id ?? null;
+    const baselineSnapshot = snapshotRow
       ? {
-          id: currentBaselineId ?? undefined,
-          statusCode: fixture.baseline.statusCode,
-          headers: fixture.baseline.headers,
-          body: fixture.baseline.body,
-          bodyType: fixture.baseline.bodyType,
+          id: snapshotRow.id,
+          statusCode: snapshotRow.statusCode,
+          headers: snapshotRow.headers,
+          body: snapshotRow.body,
+          bodyType: snapshotRow.bodyType,
         }
       : undefined;
 
@@ -145,26 +148,34 @@ export class AuthorizedReplayService {
         diffDetails: result.diffDetails,
       });
       persistedRunId = persisted.id;
-    } catch {
-      // Non-fatal if logging storage fails, but preserve replay result
+    } catch (err) {
+      // The outbound request already happened and cannot be rolled back: preserve the result,
+      // but surface the gap (sanitized: error name only, never message/payload).
+      console.error('[replay] ReplayRun persistence failed', err instanceof Error ? err.name : 'UnknownError');
     }
 
-    // 7. Record sanitized audit log
-    await this.store.createAuditLog({
-      projectId,
-      userId,
-      action: 'REPLAY_EXECUTED',
-      targetType: 'Fixture',
-      targetId: fixture.id,
-      metadata: {
-        runId: persistedRunId,
-        suiteRunId: suiteRunId ?? null,
-        environmentId: storedEnv.id,
-        status: result.status,
-        durationMs: result.durationMs,
-        diffFound: result.diffFound,
-      },
-    });
+    // 7. Record sanitized audit log (best-effort: the replay has already executed)
+    try {
+      await this.store.createAuditLog({
+        projectId,
+        userId,
+        action: 'REPLAY_EXECUTED',
+        targetType: 'Fixture',
+        targetId: fixture.id,
+        metadata: {
+          runId: persistedRunId,
+          suiteRunId: suiteRunId ?? null,
+          environmentId: storedEnv.id,
+          baselineId: currentBaselineId,
+          status: result.status,
+          durationMs: result.durationMs,
+          diffFound: result.diffFound,
+          bodyCaptured: captureResponseBody === true,
+        },
+      });
+    } catch (err) {
+      console.error('[replay] REPLAY_EXECUTED audit failed', err instanceof Error ? err.name : 'UnknownError');
+    }
 
     return {
       ...result,
@@ -223,12 +234,15 @@ export class AuthorizedReplayService {
     let failedItems = 0;
     const suiteStartTime = Date.now();
     let overallStatus = 'SUCCESS';
+    // Intentional cancellation (AbortSignal). The outcome contract has no CANCELLED value, so it is
+    // persisted as TIMEOUT and distinguished durably via cancelled: true in the audit metadata.
+    let cancelled = false;
 
     try {
       // 4. Execute fixtures sequentially
       for (const item of suite.items) {
         if (signal?.aborted) {
-          overallStatus = 'TIMEOUT';
+          cancelled = true;
           break;
         }
 
@@ -275,11 +289,17 @@ export class AuthorizedReplayService {
           results.push(runResult);
         } catch {
           failedItems++;
-          overallStatus = 'TRANSPORT_ERROR';
+          if (signal?.aborted) {
+            cancelled = true;
+          } else {
+            overallStatus = 'TRANSPORT_ERROR';
+          }
         }
       }
+      if (cancelled) overallStatus = 'TIMEOUT';
     } catch (unhandledErr) {
-      overallStatus = signal?.aborted ? 'TIMEOUT' : 'TRANSPORT_ERROR';
+      cancelled = signal?.aborted === true;
+      overallStatus = cancelled ? 'TIMEOUT' : 'TRANSPORT_ERROR';
       const durationMs = Date.now() - suiteStartTime;
       const completedAt = new Date().toISOString();
       await this.store.updateSuiteRun(suiteRun.id, {
@@ -304,22 +324,27 @@ export class AuthorizedReplayService {
       completedAt,
     });
 
-    // 6. Record Audit Log for suite execution
-    await this.store.createAuditLog({
-      projectId,
-      userId,
-      action: 'SUITE_EXECUTED',
-      targetType: 'RegressionSuite',
-      targetId: suiteId,
-      metadata: {
-        suiteRunId: suiteRun.id,
-        totalItems,
-        passedItems,
-        failedItems,
-        durationMs,
-        status: overallStatus,
-      },
-    });
+    // 6. Record Audit Log for suite execution (best-effort: the SuiteRun is already durable)
+    try {
+      await this.store.createAuditLog({
+        projectId,
+        userId,
+        action: 'SUITE_EXECUTED',
+        targetType: 'RegressionSuite',
+        targetId: suiteId,
+        metadata: {
+          suiteRunId: suiteRun.id,
+          totalItems,
+          passedItems,
+          failedItems,
+          durationMs,
+          status: overallStatus,
+          cancelled,
+        },
+      });
+    } catch (err) {
+      console.error('[suite] SUITE_EXECUTED audit failed', err instanceof Error ? err.name : 'UnknownError');
+    }
 
     return {
       id: suiteRun.id,

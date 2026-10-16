@@ -153,18 +153,6 @@ export function createApiRouter(
       const user = req.user!;
       const projectId = p(req.params.projectId);
       await projectService.deleteProject(projectId, user.id);
-      try {
-        await projectService.store.createAuditLog({
-          projectId: null,
-          userId: user.id,
-          action: 'PROJECT_DELETED',
-          targetType: 'Project',
-          targetId: projectId,
-          metadata: { projectId },
-        });
-      } catch {
-        // Audit persistence failure should not roll back completed deletion
-      }
       res.status(204).end();
     } catch (err) {
       handleError(res, err);
@@ -188,18 +176,6 @@ export function createApiRouter(
       const projectId = p(req.params.projectId);
       const input = AssignProjectMemberInputSchema.parse(req.body);
       const member = await projectService.assignMember(projectId, user.id, input);
-      try {
-        await projectService.store.createAuditLog({
-          projectId,
-          userId: user.id,
-          action: 'MEMBER_ASSIGNED',
-          targetType: 'ProjectMember',
-          targetId: member.id,
-          metadata: { assignedUserId: member.userId, role: member.role },
-        });
-      } catch {
-        // Non-fatal
-      }
       res.status(201).json(member);
     } catch (err) {
       handleError(res, err);
@@ -212,18 +188,6 @@ export function createApiRouter(
       const projectId = p(req.params.projectId);
       const memberId = p(req.params.memberId);
       await projectService.removeMember(projectId, user.id, memberId);
-      try {
-        await projectService.store.createAuditLog({
-          projectId,
-          userId: user.id,
-          action: 'MEMBER_REMOVED',
-          targetType: 'ProjectMember',
-          targetId: memberId,
-          metadata: { memberId },
-        });
-      } catch {
-        // Non-fatal
-      }
       res.status(204).end();
     } catch (err) {
       handleError(res, err);
@@ -348,18 +312,6 @@ export function createApiRouter(
         user.id,
         input
       );
-      try {
-        await projectService.store.createAuditLog({
-          projectId,
-          userId: user.id,
-          action: 'BASELINE_UPDATED',
-          targetType: 'Fixture',
-          targetId: fixtureId,
-          metadata: { statusCode: input.baseline.statusCode, bodyType: input.baseline.bodyType },
-        });
-      } catch {
-        // Non-fatal
-      }
       res.json(fixture);
     } catch (err) {
       handleError(res, err);
@@ -517,11 +469,19 @@ export function createApiRouter(
       const suiteId = p(req.params.suiteId);
       const input = TriggerSuiteExecutionInputSchema.parse(req.body);
 
+      // Client disconnect before the response completes cancels the suite: no further fixtures
+      // are dispatched and the SuiteRun is persisted in a terminal state.
+      const abortController = new AbortController();
+      res.on('close', () => {
+        if (!res.writableEnded) abortController.abort();
+      });
+
       const summary = await replayService.triggerSuiteExecution({
         projectId,
         suiteId,
         environmentId: input.environmentId,
         userId: user.id,
+        signal: abortController.signal,
         captureResponseBody: input.captureResponseBody === true,
       });
 

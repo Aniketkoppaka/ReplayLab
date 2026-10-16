@@ -18,7 +18,7 @@ import request from 'supertest';
  * 5. Secret redaction in headers and body omission policy
  * 6. SSRF blocking and security isolation
  */
-describe('Phase 4 Orchestration End-to-End Audit (Real HTTP Server)', () => {
+describe('Phase 4 orchestration through the real Express + replay engine stack (offline: SSRF-blocked targets only; no external network)', () => {
   let demoServer: http.Server;
   let demoPort: number;
   let app: ReturnType<typeof createApp>;
@@ -143,7 +143,7 @@ describe('Phase 4 Orchestration End-to-End Audit (Real HTTP Server)', () => {
   it('orchestrates suite execution and verifies child ReplayRuns have suiteRunId and terminal state', async () => {
     const env = await store.createEnvironment(projectId, {
       name: 'Suite Target',
-      baseUrl: 'https://example.com',
+      baseUrl: 'http://10.0.0.1',
       headers: {},
       variables: [],
     });
@@ -194,7 +194,7 @@ describe('Phase 4 Orchestration End-to-End Audit (Real HTTP Server)', () => {
   it('prevents body leakage by default and enforces size limits on explicit capture', async () => {
     const env = await store.createEnvironment(projectId, {
       name: 'Capture Policy Env',
-      baseUrl: 'https://example.com',
+      baseUrl: 'http://10.0.0.1',
       headers: {},
       variables: [],
     });
@@ -225,7 +225,7 @@ describe('Phase 4 Orchestration End-to-End Audit (Real HTTP Server)', () => {
   it('marks SuiteRun as TIMEOUT when execution signal is aborted', async () => {
     const env = await store.createEnvironment(projectId, {
       name: 'Abort Env',
-      baseUrl: 'https://example.com',
+      baseUrl: 'http://10.0.0.1',
       headers: {},
       variables: [],
     });
