@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/auth/auth-provider';
+import { useProject } from '@/components/project/project-provider';
 import {
   FolderKanban,
   Server,
@@ -14,6 +15,7 @@ import {
   LogOut,
   User as UserIcon,
   Activity,
+  ChevronDown,
 } from 'lucide-react';
 
 interface NavItem {
@@ -38,6 +40,7 @@ export interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
+  const { projects, activeProject, setActiveProjectId } = useProject();
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">
@@ -114,11 +117,44 @@ export function AppShell({ children }: AppShellProps) {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header Bar */}
         <header className="h-14 border-b border-slate-800 bg-slate-900/20 backdrop-blur px-8 flex items-center justify-between">
-          <div className="text-sm text-slate-400">
-            Environment Target:{' '}
-            <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-              {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}
-            </span>
+          <div className="flex items-center gap-4">
+            {/* Project Switcher */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-slate-400">Workspace:</span>
+              {projects.length > 0 ? (
+                <div className="relative inline-block">
+                  <select
+                    value={activeProject?.id || ''}
+                    onChange={(e) => setActiveProjectId(e.target.value)}
+                    className="appearance-none bg-slate-800/80 hover:bg-slate-800 text-white font-medium text-xs px-3 py-1.5 pr-8 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.role || 'MEMBER'})
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="h-3.5 w-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              ) : (
+                <Link
+                  href="/projects"
+                  className="text-xs text-indigo-400 hover:underline font-medium"
+                >
+                  Create your first project
+                </Link>
+              )}
+            </div>
+
+            <div className="hidden md:flex items-center text-xs text-slate-500">
+              <span className="mx-2">•</span>
+              <span>
+                API Target:{' '}
+                <span className="font-mono text-[11px] text-slate-400">
+                  {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}
+                </span>
+              </span>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">

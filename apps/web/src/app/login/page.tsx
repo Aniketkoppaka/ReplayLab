@@ -58,37 +58,39 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Tab switch between Supabase and Dev Token */}
-        <div className="mb-6 flex rounded-lg bg-slate-800/80 p-1 border border-slate-700/60">
-          <button
-            type="button"
-            onClick={() => {
-              setMode('supabase');
-              setError(null);
-            }}
-            className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition ${
-              mode === 'supabase'
-                ? 'bg-indigo-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Supabase Account
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('dev');
-              setError(null);
-            }}
-            className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition ${
-              mode === 'dev'
-                ? 'bg-indigo-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Developer Token
-          </button>
-        </div>
+        {/* Tab switch between Supabase and Dev Token (Dev Token only allowed in non-production) */}
+        {process.env.NODE_ENV !== 'production' && (
+          <div className="mb-6 flex rounded-lg bg-slate-800/80 p-1 border border-slate-700/60">
+            <button
+              type="button"
+              onClick={() => {
+                setMode('supabase');
+                setError(null);
+              }}
+              className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition ${
+                mode === 'supabase'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Supabase Account
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('dev');
+                setError(null);
+              }}
+              className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition ${
+                mode === 'dev'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Developer Token
+            </button>
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 flex items-start gap-3 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">

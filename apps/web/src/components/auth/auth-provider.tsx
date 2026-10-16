@@ -30,8 +30,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token]);
 
   useEffect(() => {
-    // Check if a dev token was stored in sessionStorage
-    if (typeof window !== 'undefined') {
+    // Check if a dev token was stored in sessionStorage (ONLY in non-production environments)
+    if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
       const storedDevToken = sessionStorage.getItem('replaylab_dev_token');
       if (storedDevToken) {
         setToken(storedDevToken);

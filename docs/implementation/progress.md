@@ -94,6 +94,33 @@
      - Executed full workspace lint (`npx pnpm -r run lint`): 0 errors, 0 warnings.
      - Executed full workspace typecheck (`npx pnpm -r run typecheck`): 0 errors across all 5 workspace projects.
      - Executed full workspace tests (`npx pnpm -r run test`): 130 tests passing.
-     - Executed production build (`npx pnpm -F @replaylab/web run build`): All Next.js routes statically prerendered with zero compile warnings/errors.
+## Phase 5.2 — Project, Environment & Fixture Management
+- **Status**: Completed & Verified
+- **Completed Actions**:
+  1. **Workspace Context & Project Selection**:
+     - Created `ProjectProvider` and `useProject` hook in `apps/web/src/components/project/project-provider.tsx` with `localStorage` persistence, seamless project switching, and dynamic member role reflection (`OWNER`, `EDITOR`, `VIEWER`).
+     - Enhanced `AppShell` header with a workspace project dropdown selector and API target indicator.
+  2. **Project Workspace Management (`/projects`)**:
+     - Implemented project list cards with role badges, creation dates, active workspace badges, and select buttons.
+     - Implemented project creation modal using `CreateProjectInputSchema` with client validation and error reporting.
+     - Added owner-only deletion with confirmation modal and automatic active project re-selection.
+  3. **Target Environment Management (`/environments`)**:
+     - Connected to `GET /projects/:projectId/environments`, `POST /projects/:projectId/environments`, `PATCH /projects/:projectId/environments/:envId`, and `DELETE /projects/:projectId/environments/:envId`.
+     - Built safe environment editor: secret values are permanently masked (`•••••••• [Encrypted Secret Retained]`). Plaintext secrets are never fetched or displayed.
+     - Implemented secret replacement semantics: users can replace secrets without exposing previous values or retain existing secrets.
+     - Added default request header editor and anti-SSRF security callouts.
+  4. **Sanitized Fixture Management (`/fixtures`)**:
+     - Connected to `GET /projects/:projectId/fixtures`, `POST /projects/:projectId/fixtures`, `PATCH /projects/:projectId/fixtures/:fixtureId`, and `DELETE /projects/:projectId/fixtures/:fixtureId`.
+     - Implemented HTTP method badges (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`), relative path inputs, header maps, tag pills, and body type selectors (`NONE`, `JSON`, `TEXT`) with client-side JSON syntax validation.
+     - Built explicit Baseline Snapshot modal (`POST /projects/:projectId/fixtures/:fixtureId/baseline`) with status code and body snapshot editor, preventing accidental overwrites.
+  5. **Security Hardening**:
+     - Gated developer token injection in `AuthProvider` and `login/page.tsx` behind `process.env.NODE_ENV !== 'production'`.
+     - Maintained zero-plaintext secret exposure and server-authoritative role enforcement.
+  6. **Automated Verification**:
+     - Added unit tests in `apps/web/src/lib/forms.test.ts` validating environment URL constraints, variable identifier naming, fixture method/path schemas, and baseline status codes (17 tests passing in `apps/web`).
+     - Executed full workspace lint (`npx pnpm -r run lint`): 0 errors, 0 warnings across all 5 workspace projects.
+     - Executed full workspace typecheck (`npx pnpm -r run typecheck`): 0 errors across all 5 workspace projects.
+     - Executed full workspace tests (`npx pnpm -r run test`): 138 tests passing (130 api + 8 web new, 17 total in web), 22 live PG tests skipped without URI, 0 failures.
+     - Executed production build (`npx pnpm -F @replaylab/web run build`): All 11 Next.js routes statically prerendered cleanly.
 
 
