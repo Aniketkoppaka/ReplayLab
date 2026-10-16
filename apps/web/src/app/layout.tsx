@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import './globals.css';
+import { AuthProvider } from '@/components/auth/auth-provider';
 
 export const metadata = {
   title: 'ReplayLab',
@@ -12,7 +14,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className="min-h-screen bg-slate-950 font-sans antialiased text-slate-100">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

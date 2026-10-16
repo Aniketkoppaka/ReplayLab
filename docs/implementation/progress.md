@@ -71,6 +71,29 @@
      - Live Supabase PostgreSQL tests: 22 passed across `postgres-live.test.ts` (18 passed) and `postgres-live-lifecycle.test.ts` (4 passed).
      - Total: 152 passed tests across 15 test files (0 failures, 0 skipped).
      - Strict linting (0 warnings) and strict typecheck (0 errors) across all packages.
-     - Production build succeeded cleanly across `@replaylab/contracts`, `@replaylab/db`, `@replaylab/api`, and `@replaylab/web`.
+ ## Phase 5.1 — Next.js UI Foundation & Authentication
+- **Status**: Completed & Verified
+- **Completed Actions**:
+  1. **Application Shell & Responsive Layout**:
+     - Built responsive dark-themed application shell with sidebar navigation, user session status badge, environment target indicator, and sign-out controls using Next.js App Router 15, React 19, and Tailwind CSS.
+     - Implemented module navigation placeholders for Projects, Environments, Fixtures, Replay Runs, Regression Suites, and Audit Logs.
+  2. **Supabase Client Authentication & Dev Bypass**:
+     - Configured `@supabase/supabase-js` client in `apps/web/src/lib/supabase.ts` with strict public environment variable validation (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_API_URL`).
+     - Ensured Supabase JWT payload compatibility (`sub`, `email`, `aud: 'authenticated'`) with API backend's `token-verifier.ts`.
+     - Created `AuthProvider` and `useAuth` hook supporting password authentication, session synchronization, and local developer token injection for offline dev and test suites.
+  3. **Strict Secret Isolation**:
+     - Implemented `PublicEnvSchema` via Zod in `apps/web/src/lib/env.ts` restricting client-exposed properties to safe public identifiers.
+     - Added automated security test `env.test.ts` asserting server secrets (`DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_ENCRYPTION_KEY`, `SUPABASE_JWT_SECRET`) are never included in public configuration.
+  4. **Typed API Client**:
+     - Created `ApiClient` in `apps/web/src/lib/api-client.ts` with dynamic token injection, standardized JSON serialization, and automatic mapping of API error envelopes to typed `ApiClientError` instances.
+     - Integrated shared DTOs from `@replaylab/contracts`.
+  5. **Protected Route Wrapper**:
+     - Created `ProtectedRoute` in `apps/web/src/components/auth/protected-route.tsx` displaying loading states while resolving sessions and rendering unauthenticated redirect prompts when sessions are missing.
+  6. **Automated Verification**:
+     - Added unit tests in `apps/web/src/lib/api-client.test.ts` and `apps/web/src/lib/env.test.ts` (9 tests passing).
+     - Executed full workspace lint (`npx pnpm -r run lint`): 0 errors, 0 warnings.
+     - Executed full workspace typecheck (`npx pnpm -r run typecheck`): 0 errors across all 5 workspace projects.
+     - Executed full workspace tests (`npx pnpm -r run test`): 130 tests passing.
+     - Executed production build (`npx pnpm -F @replaylab/web run build`): All Next.js routes statically prerendered with zero compile warnings/errors.
 
 
