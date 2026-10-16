@@ -70,6 +70,123 @@ export interface ProjectStore {
   createSuite(projectId: string, input: CreateSuiteInput): Promise<SuiteResponse>;
   updateSuite(projectId: string, suiteId: string, input: UpdateSuiteInput): Promise<SuiteResponse>;
   deleteSuite(projectId: string, suiteId: string): Promise<void>;
+
+  // Replay Runs
+  createReplayRun(data: {
+    id?: string;
+    projectId: string;
+    fixtureId: string;
+    environmentId: string;
+    suiteRunId?: string | null;
+    baselineId?: string | null;
+    triggeredById?: string | null;
+    status: string;
+    httpStatusCode?: number | null;
+    headers?: Record<string, string>;
+    bodyType?: string | null;
+    body?: unknown;
+    durationMs: number;
+    errorMessage?: string | null;
+    diffFound: boolean;
+    diffDetails?: unknown;
+  }): Promise<{ id: string; status: string; executedAt: string }>;
+
+  listReplayRuns(
+    projectId: string,
+    options?: { limit?: number; offset?: number; fixtureId?: string }
+  ): Promise<Array<{
+    id: string;
+    fixtureId: string;
+    environmentId: string;
+    status: string;
+    httpStatusCode?: number | null;
+    durationMs: number;
+    diffFound: boolean;
+    executedAt: string;
+  }>>;
+
+  getReplayRun(
+    projectId: string,
+    runId: string
+  ): Promise<{
+    id: string;
+    projectId: string;
+    fixtureId: string;
+    environmentId: string;
+    baselineId?: string | null;
+    status: string;
+    httpStatusCode?: number | null;
+    headers: Record<string, string>;
+    bodyType?: string | null;
+    body?: unknown;
+    durationMs: number;
+    errorMessage?: string | null;
+    diffFound: boolean;
+    diffDetails?: unknown;
+    executedAt: string;
+  } | null>;
+
+  // Suite Runs
+  createSuiteRun(data: {
+    id?: string;
+    projectId: string;
+    suiteId: string;
+    environmentId: string;
+    triggeredById?: string | null;
+    status: string;
+    totalItems: number;
+    suiteSnapshot: unknown;
+  }): Promise<{ id: string; status: string; startedAt: string }>;
+
+  updateSuiteRun(
+    suiteRunId: string,
+    data: {
+      status: string;
+      passedItems: number;
+      failedItems: number;
+      durationMs: number;
+      completedAt: string;
+    }
+  ): Promise<void>;
+
+  listSuiteRuns(
+    projectId: string,
+    suiteId?: string,
+    options?: { limit?: number; offset?: number }
+  ): Promise<Array<{
+    id: string;
+    suiteId: string;
+    environmentId: string;
+    status: string;
+    totalItems: number;
+    passedItems: number;
+    failedItems: number;
+    durationMs: number;
+    startedAt: string;
+    completedAt?: string | null;
+  }>>;
+
+  // Audit Logs
+  createAuditLog(data: {
+    projectId?: string | null;
+    userId?: string | null;
+    action: string;
+    targetType: string;
+    targetId: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<void>;
+
+  listAuditLogs(
+    projectId: string,
+    options?: { limit?: number; offset?: number }
+  ): Promise<Array<{
+    id: string;
+    action: string;
+    targetType: string;
+    targetId: string;
+    metadata: Record<string, unknown>;
+    createdAt: string;
+  }>>;
 }
 
 export class ProjectAuthorizationError extends Error {

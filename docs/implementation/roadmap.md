@@ -5,27 +5,29 @@
 - [x] **Phase 0.2**: Monorepo scaffolding, Git initialization, Antigravity skills, and CI workflow.
 
 ## Phase 1: Core Domain Contracts & Database Scaffolding
-- [ ] Initialize `packages/contracts` with Zod schemas for Fixtures, Environments, ReplayRuns, and ComparisonResults.
-- [ ] Initialize `packages/db` with Prisma schema for workspaces, environments, fixtures, runs, and baselines.
-- [ ] Set up local Supabase / PostgreSQL development container in `infra/database`.
+- [x] Initialize `packages/contracts` with Zod schemas for Fixtures, Environments, ReplayRuns, and ComparisonResults.
+- [x] Initialize `packages/db` with Prisma schema for workspaces, environments, fixtures, runs, and baselines.
+- [x] Set up local Supabase / PostgreSQL development container in `infra/database`.
 
 ## Phase 2: Replay Engine & SSRF Protection (apps/api)
-- [ ] Implement secure HTTP dispatcher in `apps/api/src/replay-engine`.
-- [ ] Implement DNS pre-resolution and IP blocklist checking.
-- [ ] Implement hop-by-hop redirect validation and strict timeouts.
-- [ ] Implement deterministic mock target in `infra/demo-api`.
-- [ ] Write integration test suite proving rejection of `127.0.0.1`, `169.254.169.254`, and private networks.
+- [x] Implement secure HTTP dispatcher in `apps/api/src/replay-engine`.
+- [x] Implement DNS pre-resolution and IP blocklist checking.
+- [x] Implement hop-by-hop redirect validation and strict timeouts.
+- [x] Implement deterministic mock target in `infra/demo-api`.
+- [x] Write integration test suite proving rejection of `127.0.0.1`, `169.254.169.254`, and private networks.
 
-## Phase 3: Differential Comparison Engine
-- [ ] Implement semantic JSON diffing algorithm.
-- [ ] Implement field mask rules (ignore, type-check, regex).
-- [ ] Implement baseline snapshot storage and retrieval.
+## Phase 3: Differential Comparison Engine & Authenticated Foundation
+- [x] Implement semantic JSON diffing algorithm.
+- [x] Implement field mask rules (ignore, type-check, regex).
+- [x] Implement baseline snapshot storage and retrieval.
+- [x] Multi-tenant PostgreSQL persistence with Prisma and Supabase.
+- [x] Concurrency-safe last-owner protection with advisory locks.
 
-## Phase 4: Express Management API
-- [ ] Fixture CRUD endpoints with contract validation.
-- [ ] Environment management endpoints.
-- [ ] Replay execution and suite trigger endpoints.
-- [ ] Multi-tenant authorization and error handling middleware.
+## Phase 4: Express Management API & Replay Orchestration Integration
+- [x] Fixture CRUD endpoints with contract validation.
+- [x] Environment management endpoints with AES-256-GCM secret encryption.
+- [x] Replay execution and suite trigger endpoints with durable ReplayRun and SuiteRun history.
+- [x] Multi-tenant authorization, audit logging, and error handling middleware.
 
 ## Phase 5: Next.js Frontend (apps/web)
 - [ ] Initialize Next.js App Router with Tailwind CSS and shadcn/ui.

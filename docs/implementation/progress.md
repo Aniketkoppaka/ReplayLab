@@ -7,16 +7,23 @@
   - Checked installed tooling: Node v24.11.0, npm 11.6.2, Corepack 0.34.0, Git 2.49.0, Docker 29.6.2.
   - Delivered comprehensive reconnaissance report.
 
-## Phase 0.2 — Repository Scaffolding and Agent Preparation
+## Phase 3 — Authenticated API Foundation, Prisma Persistence & Concurrency Invariants
 - **Status**: Completed
 - **Completed Actions**:
-  - Initialized Git repository with `main` branch.
-  - Configured Corepack with pinned `pnpm@9.15.5`.
-  - Configured root `.gitignore`, `.npmrc`, `package.json`, `pnpm-workspace.yaml`, and `tsconfig.base.json`.
-  - Authored comprehensive root `AGENTS.md`.
-  - Authored 7 project-specific Antigravity skills in `.agents/skills/` (`implementation-planning`, `secure-api-development`, `replay-engine-safety`, `regression-testing`, `code-review`, `database-migrations`, `release-verification`).
-  - Authored 5 scoped rules in `.agents/rules/`.
-  - Authored complete architecture, threat model, testing strategy, and ADR documentation.
-  - Authored environment templates (`.env.example`, `.env.test.example`) and GitHub Actions CI workflow.
-  - Initialized minimal package manifests and TypeScript configurations for `apps/web`, `apps/api`, `packages/contracts`, `packages/db`, and `packages/config`.
-  - Verified workspace integrity with Corepack and pnpm.
+  - Implemented Supabase JWT verification with kid rotation defenses and fail-closed public key resolution.
+  - Implemented multi-tenant ProjectStore interface with PrismaProjectStore and in-memory store for unit tests.
+  - Connected live Supabase PostgreSQL via connection pooler and verified initial migration deployment.
+  - Implemented and verified concurrency-safe last-owner protection using PostgreSQL advisory transaction locks (`pg_advisory_xact_lock`).
+  - Added baseline history immutability and process restart state persistence tests.
+
+## Phase 4 — Express Management API & Replay Orchestration Integration
+- **Status**: Completed
+- **Completed Actions**:
+  - Connected `AuthorizedReplayService` to durable `ReplayRun` persistence, recording exact immutable baseline IDs, outcome status, diffs, execution metrics, and redacted headers.
+  - Ensured concurrency admission rejections reject with HTTP 503 without creating synthetic replay runs.
+  - Implemented regression suite orchestration (`triggerSuiteExecution`) capturing immutable `suiteSnapshot` JSON, evaluating per-fixture assertions, and recording `SuiteRun` summary.
+  - Implemented durable `AuditLog` persistence across security-critical project, member, fixture, environment, and suite actions.
+  - Exposed paginated management endpoints: `GET /projects/:projectId/runs`, `GET /projects/:projectId/runs/:runId`, `POST /projects/:projectId/suites/:suiteId/run`, `GET /projects/:projectId/suites/:suiteId/runs`, and `GET /projects/:projectId/audit-logs`.
+  - Added comprehensive test coverage in unit/in-memory test suite (`api.test.ts`) and verified durable behavior against live Supabase PostgreSQL (`postgres-live.test.ts`).
+  - Ran workspace lint, typecheck, build, and tests (121 passed tests across 11 test files).
+

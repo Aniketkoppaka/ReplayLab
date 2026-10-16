@@ -399,5 +399,111 @@ export function createApiRouter(
     }
   });
 
+  // --- Runs History & Inspection ---
+  router.get('/projects/:projectId/runs', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const projectId = p(req.params.projectId);
+      await projectService.assertPermission(projectId, user.id, 'project:read');
+
+      const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 50;
+      const offset = req.query.offset ? parseInt(String(req.query.offset), 10) : 0;
+      const fixtureId = req.query.fixtureId ? String(req.query.fixtureId) : undefined;
+
+      const runs = await projectService.store.listReplayRuns(projectId, { limit, offset, fixtureId });
+      res.json(runs);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.get('/projects/:projectId/runs/:runId', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const projectId = p(req.params.projectId);
+      await projectService.assertPermission(projectId, user.id, 'project:read');
+
+      const run = await projectService.store.getReplayRun(projectId, p(req.params.runId));
+      if (!run) {
+        res.status(404).json({
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Replay run not found in project',
+          },
+        });
+        return;
+      }
+
+      res.json(run);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  // --- Suite Execution & History ---
+  router.post('/projects/:projectId/suites/:suiteId/run', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const projectId = p(req.params.projectId);
+      const suiteId = p(req.params.suiteId);
+      const environmentId = String(req.body.environmentId || '');
+      if (!environmentId) {
+        res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'environmentId is required',
+          },
+        });
+        return;
+      }
+
+      const summary = await replayService.triggerSuiteExecution({
+        projectId,
+        suiteId,
+        environmentId,
+        userId: user.id,
+        captureResponseBody: req.body.captureResponseBody === true,
+      });
+
+      res.json(summary);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  router.get('/projects/:projectId/suites/:suiteId/runs', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const projectId = p(req.params.projectId);
+      const suiteId = p(req.params.suiteId);
+      await projectService.assertPermission(projectId, user.id, 'project:read');
+
+      const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 50;
+      const offset = req.query.offset ? parseInt(String(req.query.offset), 10) : 0;
+
+      const runs = await projectService.store.listSuiteRuns(projectId, suiteId, { limit, offset });
+      res.json(runs);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  // --- Audit Logs ---
+  router.get('/projects/:projectId/audit-logs', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = req.user!;
+      const projectId = p(req.params.projectId);
+      await projectService.assertPermission(projectId, user.id, 'project:read');
+
+      const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 50;
+      const offset = req.query.offset ? parseInt(String(req.query.offset), 10) : 0;
+
+      const logs = await projectService.store.listAuditLogs(projectId, { limit, offset });
+      res.json(logs);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
   return router;
 }

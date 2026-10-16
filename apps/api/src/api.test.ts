@@ -554,5 +554,100 @@ describe('Authenticated API Foundation Integration Tests', () => {
       expect(getRes.body.error.code).toBe('NOT_FOUND');
     });
   });
+
+  describe('7. Replay History, Suite Execution & Audit Log Endpoints', () => {
+    let projectId: string;
+    let envId: string;
+    let fixtureId: string;
+    let suiteId: string;
+
+    beforeAll(async () => {
+      const pRes = await request(app)
+        .post('/api/v1/projects')
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ name: 'Orchestration API Test' });
+      projectId = pRes.body.id;
+
+      const eRes = await request(app)
+        .post(`/api/v1/projects/${projectId}/environments`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ name: 'Demo Env', baseUrl: 'https://example.com' });
+      envId = eRes.body.id;
+
+      const fRes = await request(app)
+        .post(`/api/v1/projects/${projectId}/fixtures`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({
+          name: 'Fixture for History',
+          request: { method: 'GET', path: '/test', bodyType: 'NONE' },
+        });
+      fixtureId = fRes.body.id;
+
+      const sRes = await request(app)
+        .post(`/api/v1/projects/${projectId}/suites`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({
+          name: 'Suite for Execution',
+          items: [{ fixtureId, order: 0 }],
+        });
+      suiteId = sRes.body.id;
+    });
+
+    it('records a durable ReplayRun and retrieves it via GET /runs', async () => {
+      // Create a replay run via store directly or trigger
+      await store.createReplayRun({
+        projectId,
+        fixtureId,
+        environmentId: envId,
+        status: 'SUCCESS',
+        httpStatusCode: 200,
+        durationMs: 45,
+        diffFound: false,
+      });
+
+      const listRes = await request(app)
+        .get(`/api/v1/projects/${projectId}/runs`)
+        .set('Authorization', `Bearer ${ownerToken}`);
+
+      expect(listRes.status).toBe(200);
+      expect(listRes.body.length).toBeGreaterThan(0);
+      const runId = listRes.body[0].id;
+
+      const detailRes = await request(app)
+        .get(`/api/v1/projects/${projectId}/runs/${runId}`)
+        .set('Authorization', `Bearer ${ownerToken}`);
+
+      expect(detailRes.status).toBe(200);
+      expect(detailRes.body.id).toBe(runId);
+      expect(detailRes.body.status).toBe('SUCCESS');
+    });
+
+    it('executes a suite via POST /suites/:suiteId/run and returns summary', async () => {
+      const runRes = await request(app)
+        .post(`/api/v1/projects/${projectId}/suites/${suiteId}/run`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ environmentId: envId });
+
+      expect(runRes.status).toBe(200);
+      expect(runRes.body.suiteId).toBe(suiteId);
+      expect(runRes.body.totalItems).toBe(1);
+
+      const listSuiteRuns = await request(app)
+        .get(`/api/v1/projects/${projectId}/suites/${suiteId}/runs`)
+        .set('Authorization', `Bearer ${ownerToken}`);
+
+      expect(listSuiteRuns.status).toBe(200);
+      expect(listSuiteRuns.body.length).toBeGreaterThan(0);
+    });
+
+    it('retrieves project audit logs via GET /audit-logs', async () => {
+      const logsRes = await request(app)
+        .get(`/api/v1/projects/${projectId}/audit-logs`)
+        .set('Authorization', `Bearer ${ownerToken}`);
+
+      expect(logsRes.status).toBe(200);
+      expect(Array.isArray(logsRes.body)).toBe(true);
+    });
+  });
 });
 

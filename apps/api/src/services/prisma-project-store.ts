@@ -26,6 +26,7 @@ import {
   BodyType as DbBodyType,
   AssertionType as DbAssertionType,
   MaskAction as DbMaskAction,
+  ReplayOutcomeStatus as DbReplayOutcomeStatus,
 } from '@replaylab/db';
 import type { ProjectStore } from './project-service.js';
 import { encryptSecret } from '../crypto.js';
@@ -1033,5 +1034,227 @@ export class PrismaProjectStore implements ProjectStore {
       createdAt: s.createdAt.toISOString(),
       updatedAt: s.updatedAt.toISOString(),
     };
+  }
+
+  // --- Replay Runs ---
+  public async createReplayRun(data: {
+    id?: string;
+    projectId: string;
+    fixtureId: string;
+    environmentId: string;
+    suiteRunId?: string | null;
+    baselineId?: string | null;
+    triggeredById?: string | null;
+    status: string;
+    httpStatusCode?: number | null;
+    headers?: Record<string, string>;
+    bodyType?: string | null;
+    body?: unknown;
+    durationMs: number;
+    errorMessage?: string | null;
+    diffFound: boolean;
+    diffDetails?: unknown;
+  }) {
+    const run = await this.prisma.replayRun.create({
+      data: {
+        ...(data.id ? { id: data.id } : {}),
+        projectId: data.projectId,
+        fixtureId: data.fixtureId,
+        environmentId: data.environmentId,
+        suiteRunId: data.suiteRunId ?? null,
+        baselineId: data.baselineId ?? null,
+        triggeredById: data.triggeredById ?? null,
+        status: data.status as DbReplayOutcomeStatus,
+        httpStatusCode: data.httpStatusCode ?? null,
+        headers: (data.headers ?? {}) as Prisma.InputJsonValue,
+        bodyType: (data.bodyType ?? 'NONE') as DbBodyType,
+        body: (data.body ?? null) as Prisma.InputJsonValue,
+        durationMs: data.durationMs,
+        errorMessage: data.errorMessage ?? null,
+        diffFound: data.diffFound,
+        diffDetails: (data.diffDetails ?? null) as Prisma.InputJsonValue,
+      },
+    });
+
+    return {
+      id: run.id,
+      status: run.status,
+      executedAt: run.executedAt.toISOString(),
+    };
+  }
+
+  public async listReplayRuns(
+    projectId: string,
+    options?: { limit?: number; offset?: number; fixtureId?: string }
+  ) {
+    const runs = await this.prisma.replayRun.findMany({
+      where: {
+        projectId,
+        ...(options?.fixtureId ? { fixtureId: options.fixtureId } : {}),
+      },
+      orderBy: { executedAt: 'desc' },
+      take: options?.limit ?? 50,
+      skip: options?.offset ?? 0,
+    });
+
+    return runs.map((r) => ({
+      id: r.id,
+      fixtureId: r.fixtureId,
+      environmentId: r.environmentId,
+      status: r.status,
+      httpStatusCode: r.httpStatusCode,
+      durationMs: r.durationMs,
+      diffFound: r.diffFound,
+      executedAt: r.executedAt.toISOString(),
+    }));
+  }
+
+  public async getReplayRun(projectId: string, runId: string) {
+    const run = await this.prisma.replayRun.findFirst({
+      where: { id: runId, projectId },
+    });
+    if (!run) return null;
+
+    return {
+      id: run.id,
+      projectId: run.projectId,
+      fixtureId: run.fixtureId,
+      environmentId: run.environmentId,
+      baselineId: run.baselineId,
+      status: run.status,
+      httpStatusCode: run.httpStatusCode,
+      headers: (run.headers ?? {}) as Record<string, string>,
+      bodyType: run.bodyType,
+      body: run.body,
+      durationMs: run.durationMs,
+      errorMessage: run.errorMessage,
+      diffFound: run.diffFound,
+      diffDetails: run.diffDetails,
+      executedAt: run.executedAt.toISOString(),
+    };
+  }
+
+  // --- Suite Runs ---
+  public async createSuiteRun(data: {
+    id?: string;
+    projectId: string;
+    suiteId: string;
+    environmentId: string;
+    triggeredById?: string | null;
+    status: string;
+    totalItems: number;
+    suiteSnapshot: unknown;
+  }) {
+    const run = await this.prisma.suiteRun.create({
+      data: {
+        ...(data.id ? { id: data.id } : {}),
+        projectId: data.projectId,
+        suiteId: data.suiteId,
+        environmentId: data.environmentId,
+        triggeredById: data.triggeredById ?? null,
+        status: data.status as DbReplayOutcomeStatus,
+        totalItems: data.totalItems,
+        suiteSnapshot: data.suiteSnapshot as Prisma.InputJsonValue,
+      },
+    });
+
+    return {
+      id: run.id,
+      status: run.status,
+      startedAt: run.startedAt.toISOString(),
+    };
+  }
+
+  public async updateSuiteRun(
+    suiteRunId: string,
+    data: {
+      status: string;
+      passedItems: number;
+      failedItems: number;
+      durationMs: number;
+      completedAt: string;
+    }
+  ) {
+    await this.prisma.suiteRun.update({
+      where: { id: suiteRunId },
+      data: {
+        status: data.status as DbReplayOutcomeStatus,
+        passedItems: data.passedItems,
+        failedItems: data.failedItems,
+        durationMs: data.durationMs,
+        completedAt: new Date(data.completedAt),
+      },
+    });
+  }
+
+  public async listSuiteRuns(
+    projectId: string,
+    suiteId?: string,
+    options?: { limit?: number; offset?: number }
+  ) {
+    const runs = await this.prisma.suiteRun.findMany({
+      where: {
+        projectId,
+        ...(suiteId ? { suiteId } : {}),
+      },
+      orderBy: { startedAt: 'desc' },
+      take: options?.limit ?? 50,
+      skip: options?.offset ?? 0,
+    });
+
+    return runs.map((r) => ({
+      id: r.id,
+      suiteId: r.suiteId,
+      environmentId: r.environmentId,
+      status: r.status,
+      totalItems: r.totalItems,
+      passedItems: r.passedItems,
+      failedItems: r.failedItems,
+      durationMs: r.durationMs,
+      startedAt: r.startedAt.toISOString(),
+      completedAt: r.completedAt ? r.completedAt.toISOString() : null,
+    }));
+  }
+
+  // --- Audit Logs ---
+  public async createAuditLog(data: {
+    projectId?: string | null;
+    userId?: string | null;
+    action: string;
+    targetType: string;
+    targetId: string;
+    metadata?: Record<string, unknown>;
+  }) {
+    await this.prisma.auditLog.create({
+      data: {
+        projectId: data.projectId ?? null,
+        userId: data.userId ?? null,
+        action: data.action,
+        targetType: data.targetType,
+        targetId: data.targetId,
+        metadata: (data.metadata ?? {}) as Prisma.InputJsonValue,
+      },
+    });
+  }
+
+  public async listAuditLogs(
+    projectId: string,
+    options?: { limit?: number; offset?: number }
+  ) {
+    const logs = await this.prisma.auditLog.findMany({
+      where: { projectId },
+      orderBy: { createdAt: 'desc' },
+      take: options?.limit ?? 50,
+      skip: options?.offset ?? 0,
+    });
+
+    return logs.map((l) => ({
+      id: l.id,
+      action: l.action,
+      targetType: l.targetType,
+      targetId: l.targetId,
+      metadata: (l.metadata ?? {}) as Record<string, unknown>,
+      createdAt: l.createdAt.toISOString(),
+    }));
   }
 }

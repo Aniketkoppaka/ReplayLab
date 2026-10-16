@@ -684,6 +684,195 @@ export class InMemoryProjectStore implements ProjectStore {
     }
   }
 
+  // --- Runs & Audit Storage ---
+  public replayRuns = new Map<string, {
+    id: string;
+    projectId: string;
+    fixtureId: string;
+    environmentId: string;
+    suiteRunId?: string | null;
+    baselineId?: string | null;
+    triggeredById?: string | null;
+    status: string;
+    httpStatusCode?: number | null;
+    headers?: Record<string, string>;
+    bodyType?: string | null;
+    body?: unknown;
+    durationMs: number;
+    errorMessage?: string | null;
+    diffFound: boolean;
+    diffDetails?: unknown;
+    executedAt: string;
+  }>();
+
+  public suiteRuns = new Map<string, {
+    id: string;
+    projectId: string;
+    suiteId: string;
+    environmentId: string;
+    triggeredById?: string | null;
+    status: string;
+    totalItems: number;
+    passedItems: number;
+    failedItems: number;
+    durationMs: number;
+    suiteSnapshot: unknown;
+    startedAt: string;
+    completedAt?: string | null;
+  }>();
+
+  public auditLogs = new Array<{
+    id: string;
+    projectId?: string | null;
+    userId?: string | null;
+    action: string;
+    targetType: string;
+    targetId: string;
+    metadata?: Record<string, unknown>;
+    createdAt: string;
+  }>();
+
+  public async createReplayRun(data: {
+    id?: string;
+    projectId: string;
+    fixtureId: string;
+    environmentId: string;
+    suiteRunId?: string | null;
+    baselineId?: string | null;
+    triggeredById?: string | null;
+    status: string;
+    httpStatusCode?: number | null;
+    headers?: Record<string, string>;
+    bodyType?: string | null;
+    body?: unknown;
+    durationMs: number;
+    errorMessage?: string | null;
+    diffFound: boolean;
+    diffDetails?: unknown;
+  }) {
+    const id = data.id || genId('run');
+    const record = {
+      ...data,
+      id,
+      executedAt: new Date().toISOString(),
+    };
+    this.replayRuns.set(id, record);
+    return { id, status: record.status, executedAt: record.executedAt };
+  }
+
+  public async listReplayRuns(
+    projectId: string,
+    options?: { limit?: number; offset?: number; fixtureId?: string }
+  ) {
+    const runs = Array.from(this.replayRuns.values())
+      .filter((r) => r.projectId === projectId && (!options?.fixtureId || r.fixtureId === options.fixtureId))
+      .sort((a, b) => b.executedAt.localeCompare(a.executedAt))
+      .slice(options?.offset ?? 0, (options?.offset ?? 0) + (options?.limit ?? 50));
+
+    return runs.map((r) => ({
+      id: r.id,
+      fixtureId: r.fixtureId,
+      environmentId: r.environmentId,
+      status: r.status,
+      httpStatusCode: r.httpStatusCode,
+      durationMs: r.durationMs,
+      diffFound: r.diffFound,
+      executedAt: r.executedAt,
+    }));
+  }
+
+  public async getReplayRun(projectId: string, runId: string) {
+    const r = this.replayRuns.get(runId);
+    if (!r || r.projectId !== projectId) return null;
+    return {
+      ...r,
+      headers: r.headers ?? {},
+    };
+  }
+
+  public async createSuiteRun(data: {
+    id?: string;
+    projectId: string;
+    suiteId: string;
+    environmentId: string;
+    triggeredById?: string | null;
+    status: string;
+    totalItems: number;
+    suiteSnapshot: unknown;
+  }) {
+    const id = data.id || genId('srun');
+    const record = {
+      ...data,
+      id,
+      startedAt: new Date().toISOString(),
+      passedItems: 0,
+      failedItems: 0,
+      durationMs: 0,
+      completedAt: null,
+    };
+    this.suiteRuns.set(id, record);
+    return { id, status: record.status, startedAt: record.startedAt };
+  }
+
+  public async updateSuiteRun(
+    suiteRunId: string,
+    data: {
+      status: string;
+      passedItems: number;
+      failedItems: number;
+      durationMs: number;
+      completedAt: string;
+    }
+  ) {
+    const r = this.suiteRuns.get(suiteRunId);
+    if (r) {
+      Object.assign(r, data);
+    }
+  }
+
+  public async listSuiteRuns(
+    projectId: string,
+    suiteId?: string,
+    options?: { limit?: number; offset?: number }
+  ) {
+    const runs = Array.from(this.suiteRuns.values())
+      .filter((r) => r.projectId === projectId && (!suiteId || r.suiteId === suiteId))
+      .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+      .slice(options?.offset ?? 0, (options?.offset ?? 0) + (options?.limit ?? 50));
+
+    return runs.map((r) => ({ ...r }));
+  }
+
+  public async createAuditLog(data: {
+    projectId?: string | null;
+    userId?: string | null;
+    action: string;
+    targetType: string;
+    targetId: string;
+    metadata?: Record<string, unknown>;
+  }) {
+    const record = {
+      ...data,
+      metadata: data.metadata ?? {},
+      id: genId('aud'),
+      createdAt: new Date().toISOString(),
+    };
+    this.auditLogs.unshift(record);
+  }
+
+  public async listAuditLogs(
+    projectId: string,
+    options?: { limit?: number; offset?: number }
+  ) {
+    return this.auditLogs
+      .filter((l) => l.projectId === projectId)
+      .slice(options?.offset ?? 0, (options?.offset ?? 0) + (options?.limit ?? 50))
+      .map((l) => ({
+        ...l,
+        metadata: l.metadata ?? {},
+      }));
+  }
+
   private formatSuite(s: StoredSuite): SuiteResponse {
     return {
       id: s.id,

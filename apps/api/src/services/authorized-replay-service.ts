@@ -120,19 +120,197 @@ export class AuthorizedReplayService {
     // NOTE: ConcurrencyAdmissionError is re-thrown as-is, never caught to fabricate a fake run!
     const result = await executeFixtureReplay(replayParams);
 
-    // 6. Record sanitized audit log (zero secrets or raw sensitive payloads)
-    this.auditLogs.push({
-      id: `audit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    // 6. Durable ReplayRun Persistence: Store the actual replay outcome in the database
+    let persistedRunId: string | undefined;
+    try {
+      const persisted = await this.store.createReplayRun({
+        projectId,
+        fixtureId: fixture.id,
+        environmentId: storedEnv.id,
+        baselineId: currentBaselineId ?? null,
+        triggeredById: userId,
+        status: result.status,
+        httpStatusCode: result.httpStatusCode,
+        headers: result.headers,
+        bodyType: fixture.request.bodyType,
+        body: result.body,
+        durationMs: result.durationMs,
+        errorMessage: result.errorMessage,
+        diffFound: result.diffFound,
+        diffDetails: result.diffDetails,
+      });
+      persistedRunId = persisted.id;
+    } catch {
+      // Non-fatal if logging storage fails, but preserve replay result
+    }
+
+    // 7. Record sanitized audit log
+    await this.store.createAuditLog({
       projectId,
       userId,
       action: 'REPLAY_EXECUTED',
-      fixtureId: fixture.id,
-      environmentId: storedEnv.id,
-      status: result.status,
-      durationMs: result.durationMs,
-      timestamp: new Date().toISOString(),
+      targetType: 'Fixture',
+      targetId: fixture.id,
+      metadata: {
+        runId: persistedRunId,
+        environmentId: storedEnv.id,
+        status: result.status,
+        durationMs: result.durationMs,
+        diffFound: result.diffFound,
+      },
     });
 
-    return result;
+    return {
+      ...result,
+      id: persistedRunId,
+    } as ReplayExecutionResult & { id?: string };
+  }
+
+  /**
+   * Orchestrates full Regression Suite execution:
+   * 1. Authorizes user on project ('replay:execute').
+   * 2. Captures an immutable suiteSnapshot of fixtures, order, assertions, and mask rules.
+   * 3. Creates a durable SuiteRun in the database.
+   * 4. Bounded sequential execution of each fixture within the suite.
+   * 5. Evaluates configured assertions and links individual ReplayRuns to suiteRunId.
+   * 6. Updates SuiteRun with final tallies and status.
+   */
+  public async triggerSuiteExecution(params: {
+    projectId: string;
+    suiteId: string;
+    environmentId: string;
+    userId: string;
+    signal?: AbortSignal;
+    captureResponseBody?: boolean;
+  }) {
+    const { projectId, suiteId, environmentId, userId, signal, captureResponseBody } = params;
+
+    // 1. Authorize
+    await this.projectService.assertPermission(projectId, userId, 'replay:execute');
+
+    // 2. Load suite & environment
+    const suite = await this.store.getSuite(projectId, suiteId);
+    if (!suite) {
+      throw new Error('SUITE_NOT_FOUND: Suite does not exist in this project');
+    }
+
+    const storedEnv = await this.store.getEnvironmentSecrets(projectId, environmentId);
+    if (!storedEnv || storedEnv.projectId !== projectId) {
+      throw new Error('ENVIRONMENT_NOT_FOUND: Environment does not exist in this project');
+    }
+
+    // 3. Create initial SuiteRun with immutable snapshot
+    const totalItems = suite.items.length;
+    const suiteRun = await this.store.createSuiteRun({
+      projectId,
+      suiteId,
+      environmentId,
+      triggeredById: userId,
+      status: 'SUCCESS',
+      totalItems,
+      suiteSnapshot: suite,
+    });
+
+    const results: Array<ReplayExecutionResult & { id?: string }> = [];
+    let passedItems = 0;
+    let failedItems = 0;
+    const suiteStartTime = Date.now();
+    let overallStatus = 'SUCCESS';
+
+    // 4. Execute fixtures sequentially
+    for (const item of suite.items) {
+      if (signal?.aborted) {
+        overallStatus = 'TIMEOUT';
+        break;
+      }
+
+      try {
+        const fixture = await this.store.getFixture(projectId, item.fixtureId);
+        if (!fixture) {
+          failedItems++;
+          overallStatus = 'ASSERTION_FAILURE';
+          continue;
+        }
+
+        // Replay fixture
+        const runResult = await this.triggerReplay({
+          projectId,
+          fixtureId: item.fixtureId,
+          environmentId,
+          userId,
+          signal,
+          captureResponseBody,
+        });
+
+        // Evaluate suite-specific assertions if configured
+        let assertionFailed = false;
+        if (item.assertions && item.assertions.length > 0) {
+          for (const assertion of item.assertions) {
+            if (assertion.type === 'STATUS_CODE' && runResult.httpStatusCode !== assertion.expected) {
+              assertionFailed = true;
+            }
+            if (assertion.type === 'RESPONSE_TIME_MAX' && runResult.durationMs > assertion.maxDurationMs) {
+              assertionFailed = true;
+            }
+          }
+        }
+
+        if (runResult.status !== 'SUCCESS' || assertionFailed) {
+          failedItems++;
+          overallStatus = 'ASSERTION_FAILURE';
+        } else {
+          passedItems++;
+        }
+
+        results.push(runResult);
+      } catch {
+        failedItems++;
+        overallStatus = 'TRANSPORT_ERROR';
+      }
+    }
+
+    const durationMs = Date.now() - suiteStartTime;
+    const completedAt = new Date().toISOString();
+
+    // 5. Update SuiteRun with final metrics
+    await this.store.updateSuiteRun(suiteRun.id, {
+      status: overallStatus,
+      passedItems,
+      failedItems,
+      durationMs,
+      completedAt,
+    });
+
+    // 6. Record Audit Log for suite execution
+    await this.store.createAuditLog({
+      projectId,
+      userId,
+      action: 'SUITE_EXECUTED',
+      targetType: 'RegressionSuite',
+      targetId: suiteId,
+      metadata: {
+        suiteRunId: suiteRun.id,
+        totalItems,
+        passedItems,
+        failedItems,
+        durationMs,
+        status: overallStatus,
+      },
+    });
+
+    return {
+      id: suiteRun.id,
+      suiteId,
+      environmentId,
+      status: overallStatus,
+      totalItems,
+      passedItems,
+      failedItems,
+      durationMs,
+      results,
+      startedAt: suiteRun.startedAt,
+      completedAt,
+    };
   }
 }
+

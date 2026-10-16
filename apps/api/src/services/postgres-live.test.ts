@@ -445,4 +445,144 @@ conditionalDescribe('Live Supabase PostgreSQL Acceptance & Concurrency Suite', (
       expect(remainingOwners.length).toBe(1);
     });
   });
+
+  describe('5. Real PostgreSQL ReplayRun, SuiteRun & AuditLog Persistence', () => {
+    let p4ProjectId: string;
+    let p4EnvId: string;
+    let p4FixtureId: string;
+    let p4SuiteId: string;
+
+    beforeAll(async () => {
+      const proj = await store.createProject(userOwnerA.id, {
+        name: `P4 Live Test ${Date.now()}`,
+      });
+      p4ProjectId = proj.id;
+      createdProjectIds.push(p4ProjectId);
+
+      const env = await store.createEnvironment(p4ProjectId, {
+        name: 'Staging',
+        baseUrl: 'https://httpbin.org',
+        headers: {},
+        variables: [{ key: 'API_KEY', value: 'secret-val', isSecret: true }],
+      });
+      p4EnvId = env.id;
+
+      const fixture = await store.createFixture(p4ProjectId, {
+        name: 'Get User Fixture',
+        tags: [],
+        request: {
+          method: 'GET',
+          path: '/get',
+          queryParams: {},
+          bodyType: 'NONE',
+          headers: { 'Accept': 'application/json' },
+        },
+      });
+      p4FixtureId = fixture.id;
+
+      await store.updateBaseline(p4ProjectId, p4FixtureId, {
+        baseline: {
+          statusCode: 200,
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ ok: true }),
+          bodyType: 'JSON',
+        },
+      });
+
+      const suite = await store.createSuite(p4ProjectId, {
+        name: 'Smoke Test Suite',
+        description: 'Verifies live suite runs',
+        items: [
+          {
+            fixtureId: p4FixtureId,
+            order: 0,
+            assertions: [
+              { type: 'STATUS_CODE', expected: 200 },
+            ],
+            maskRules: [],
+          },
+        ],
+      });
+      p4SuiteId = suite.id;
+    });
+
+    it('persists a durable ReplayRun and retrieves it via PrismaProjectStore', async () => {
+      const run = await store.createReplayRun({
+        projectId: p4ProjectId,
+        fixtureId: p4FixtureId,
+        environmentId: p4EnvId,
+        triggeredById: userOwnerA.id,
+        status: 'SUCCESS',
+        httpStatusCode: 200,
+        durationMs: 142,
+        diffFound: false,
+        headers: { 'content-type': 'application/json' },
+        body: null,
+      });
+
+      expect(run.id).toBeDefined();
+      expect(run.status).toBe('SUCCESS');
+
+      const fetched = await store.getReplayRun(p4ProjectId, run.id);
+      expect(fetched).not.toBeNull();
+      expect(fetched!.id).toBe(run.id);
+      expect(fetched!.httpStatusCode).toBe(200);
+
+      const list = await store.listReplayRuns(p4ProjectId, { fixtureId: p4FixtureId });
+      expect(list.length).toBeGreaterThanOrEqual(1);
+      expect(list.some((r) => r.id === run.id)).toBe(true);
+    });
+
+    it('persists a durable SuiteRun with snapshot and links to Prisma', async () => {
+      const snapshot = {
+        suiteId: p4SuiteId,
+        suiteName: 'Smoke Test Suite',
+        environmentId: p4EnvId,
+        fixtures: [{ fixtureId: p4FixtureId, orderIndex: 0 }],
+      };
+
+      const suiteRun = await store.createSuiteRun({
+        projectId: p4ProjectId,
+        suiteId: p4SuiteId,
+        environmentId: p4EnvId,
+        triggeredById: userOwnerA.id,
+        status: 'SUCCESS',
+        totalItems: 1,
+        suiteSnapshot: snapshot,
+      });
+
+      expect(suiteRun.id).toBeDefined();
+      expect(suiteRun.status).toBe('SUCCESS');
+
+      await store.updateSuiteRun(suiteRun.id, {
+        status: 'SUCCESS',
+        passedItems: 1,
+        failedItems: 0,
+        durationMs: 250,
+        completedAt: new Date().toISOString(),
+      });
+
+      const list = await store.listSuiteRuns(p4ProjectId, p4SuiteId);
+      expect(list.length).toBeGreaterThanOrEqual(1);
+      const found = list.find((sr) => sr.id === suiteRun.id);
+      expect(found).toBeDefined();
+      expect(found!.status).toBe('SUCCESS');
+      expect(found!.passedItems).toBe(1);
+    });
+
+    it('persists durable AuditLog entries and enforces project isolation', async () => {
+      await store.createAuditLog({
+        projectId: p4ProjectId,
+        userId: userOwnerA.id,
+        action: 'SUITE_EXECUTED',
+        targetType: 'RegressionSuite',
+        targetId: p4SuiteId,
+        metadata: { status: 'PASSED' },
+      });
+
+      const logs = await store.listAuditLogs(p4ProjectId);
+      expect(logs.length).toBeGreaterThanOrEqual(1);
+      expect(logs.some((l) => l.action === 'SUITE_EXECUTED' && l.targetId === p4SuiteId)).toBe(true);
+    });
+  });
 });
