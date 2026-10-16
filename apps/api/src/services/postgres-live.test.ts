@@ -11,7 +11,7 @@ import request from 'supertest';
 const isPostgresLive = Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL.includes('postgresql://'));
 const conditionalDescribe = isPostgresLive ? describe : describe.skip;
 
-conditionalDescribe('Live Supabase PostgreSQL Acceptance & Concurrency Suite', () => {
+conditionalDescribe('Live Supabase PostgreSQL Acceptance & Concurrency Suite', { timeout: 30000 }, () => {
   let prisma: PrismaClient;
   let store: PrismaProjectStore;
   let projectService: ProjectService;
@@ -583,6 +583,42 @@ conditionalDescribe('Live Supabase PostgreSQL Acceptance & Concurrency Suite', (
       const logs = await store.listAuditLogs(p4ProjectId);
       expect(logs.length).toBeGreaterThanOrEqual(1);
       expect(logs.some((l) => l.action === 'SUITE_EXECUTED' && l.targetId === p4SuiteId)).toBe(true);
+    });
+
+    it('links child ReplayRuns to parent SuiteRun via suiteRunId foreign key in PostgreSQL', async () => {
+      const suiteRun = await store.createSuiteRun({
+        projectId: p4ProjectId,
+        suiteId: p4SuiteId,
+        environmentId: p4EnvId,
+        triggeredById: userOwnerA.id,
+        status: 'SUCCESS',
+        totalItems: 1,
+        suiteSnapshot: { id: p4SuiteId, name: 'Linked Suite' },
+      });
+
+      const childRun = await store.createReplayRun({
+        projectId: p4ProjectId,
+        fixtureId: p4FixtureId,
+        environmentId: p4EnvId,
+        suiteRunId: suiteRun.id,
+        triggeredById: userOwnerA.id,
+        status: 'SUCCESS',
+        httpStatusCode: 200,
+        headers: { 'content-type': 'application/json' },
+        bodyType: 'JSON',
+        body: { ok: true },
+        durationMs: 15,
+        diffFound: false,
+      });
+
+      const fetchedRun = await store.getReplayRun(p4ProjectId, childRun.id);
+      expect(fetchedRun?.suiteRunId).toBe(suiteRun.id);
+
+      // Verify Prisma query directly from database
+      const dbRun = await prisma.replayRun.findUnique({
+        where: { id: childRun.id },
+      });
+      expect(dbRun?.suiteRunId).toBe(suiteRun.id);
     });
   });
 });

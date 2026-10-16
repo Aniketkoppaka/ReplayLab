@@ -11,6 +11,7 @@ import {
   CreateSuiteInputSchema,
   UpdateSuiteInputSchema,
   TriggerReplayInputSchema,
+  TriggerSuiteExecutionInputSchema,
 } from '@replaylab/contracts';
 import { authenticate, type AuthenticatedRequest } from '../auth/auth-middleware.js';
 import { ProjectService, ProjectAuthorizationError } from '../services/project-service.js';
@@ -150,7 +151,20 @@ export function createApiRouter(
   router.delete('/projects/:projectId', async (req: AuthenticatedRequest, res: Response) => {
     try {
       const user = req.user!;
-      await projectService.deleteProject(p(req.params.projectId), user.id);
+      const projectId = p(req.params.projectId);
+      await projectService.deleteProject(projectId, user.id);
+      try {
+        await projectService.store.createAuditLog({
+          projectId: null,
+          userId: user.id,
+          action: 'PROJECT_DELETED',
+          targetType: 'Project',
+          targetId: projectId,
+          metadata: { projectId },
+        });
+      } catch {
+        // Audit persistence failure should not roll back completed deletion
+      }
       res.status(204).end();
     } catch (err) {
       handleError(res, err);
@@ -171,8 +185,21 @@ export function createApiRouter(
   router.post('/projects/:projectId/members', async (req: AuthenticatedRequest, res: Response) => {
     try {
       const user = req.user!;
+      const projectId = p(req.params.projectId);
       const input = AssignProjectMemberInputSchema.parse(req.body);
-      const member = await projectService.assignMember(p(req.params.projectId), user.id, input);
+      const member = await projectService.assignMember(projectId, user.id, input);
+      try {
+        await projectService.store.createAuditLog({
+          projectId,
+          userId: user.id,
+          action: 'MEMBER_ASSIGNED',
+          targetType: 'ProjectMember',
+          targetId: member.id,
+          metadata: { assignedUserId: member.userId, role: member.role },
+        });
+      } catch {
+        // Non-fatal
+      }
       res.status(201).json(member);
     } catch (err) {
       handleError(res, err);
@@ -182,7 +209,21 @@ export function createApiRouter(
   router.delete('/projects/:projectId/members/:memberId', async (req: AuthenticatedRequest, res: Response) => {
     try {
       const user = req.user!;
-      await projectService.removeMember(p(req.params.projectId), user.id, p(req.params.memberId));
+      const projectId = p(req.params.projectId);
+      const memberId = p(req.params.memberId);
+      await projectService.removeMember(projectId, user.id, memberId);
+      try {
+        await projectService.store.createAuditLog({
+          projectId,
+          userId: user.id,
+          action: 'MEMBER_REMOVED',
+          targetType: 'ProjectMember',
+          targetId: memberId,
+          metadata: { memberId },
+        });
+      } catch {
+        // Non-fatal
+      }
       res.status(204).end();
     } catch (err) {
       handleError(res, err);
@@ -298,13 +339,27 @@ export function createApiRouter(
   router.post('/projects/:projectId/fixtures/:fixtureId/baseline', async (req: AuthenticatedRequest, res: Response) => {
     try {
       const user = req.user!;
+      const projectId = p(req.params.projectId);
+      const fixtureId = p(req.params.fixtureId);
       const input = UpdateBaselineInputSchema.parse(req.body);
       const fixture = await projectService.updateBaseline(
-        p(req.params.projectId),
-        p(req.params.fixtureId),
+        projectId,
+        fixtureId,
         user.id,
         input
       );
+      try {
+        await projectService.store.createAuditLog({
+          projectId,
+          userId: user.id,
+          action: 'BASELINE_UPDATED',
+          targetType: 'Fixture',
+          targetId: fixtureId,
+          metadata: { statusCode: input.baseline.statusCode, bodyType: input.baseline.bodyType },
+        });
+      } catch {
+        // Non-fatal
+      }
       res.json(fixture);
     } catch (err) {
       handleError(res, err);
@@ -390,7 +445,7 @@ export function createApiRouter(
         fixtureId: input.fixtureId,
         environmentId: input.environmentId,
         userId: user.id,
-        captureResponseBody: req.body.captureResponseBody === true,
+        captureResponseBody: input.captureResponseBody === true,
       });
 
       res.json(result);
@@ -404,11 +459,25 @@ export function createApiRouter(
     try {
       const user = req.user!;
       const projectId = p(req.params.projectId);
-      await projectService.assertPermission(projectId, user.id, 'project:read');
+      await projectService.assertPermission(projectId, user.id, 'replay:read');
+
+      const fixtureId = req.query.fixtureId ? String(req.query.fixtureId) : undefined;
+      if (fixtureId) {
+        // Enforce 404 non-disclosure: fixture must exist within this project
+        const fixture = await projectService.store.getFixture(projectId, fixtureId);
+        if (!fixture) {
+          res.status(404).json({
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Fixture not found in project',
+            },
+          });
+          return;
+        }
+      }
 
       const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 50;
       const offset = req.query.offset ? parseInt(String(req.query.offset), 10) : 0;
-      const fixtureId = req.query.fixtureId ? String(req.query.fixtureId) : undefined;
 
       const runs = await projectService.store.listReplayRuns(projectId, { limit, offset, fixtureId });
       res.json(runs);
@@ -421,7 +490,7 @@ export function createApiRouter(
     try {
       const user = req.user!;
       const projectId = p(req.params.projectId);
-      await projectService.assertPermission(projectId, user.id, 'project:read');
+      await projectService.assertPermission(projectId, user.id, 'replay:read');
 
       const run = await projectService.store.getReplayRun(projectId, p(req.params.runId));
       if (!run) {
@@ -446,23 +515,14 @@ export function createApiRouter(
       const user = req.user!;
       const projectId = p(req.params.projectId);
       const suiteId = p(req.params.suiteId);
-      const environmentId = String(req.body.environmentId || '');
-      if (!environmentId) {
-        res.status(400).json({
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'environmentId is required',
-          },
-        });
-        return;
-      }
+      const input = TriggerSuiteExecutionInputSchema.parse(req.body);
 
       const summary = await replayService.triggerSuiteExecution({
         projectId,
         suiteId,
-        environmentId,
+        environmentId: input.environmentId,
         userId: user.id,
-        captureResponseBody: req.body.captureResponseBody === true,
+        captureResponseBody: input.captureResponseBody === true,
       });
 
       res.json(summary);
@@ -476,7 +536,19 @@ export function createApiRouter(
       const user = req.user!;
       const projectId = p(req.params.projectId);
       const suiteId = p(req.params.suiteId);
-      await projectService.assertPermission(projectId, user.id, 'project:read');
+      await projectService.assertPermission(projectId, user.id, 'replay:read');
+
+      // Enforce 404 non-disclosure: suite must exist in project
+      const suite = await projectService.store.getSuite(projectId, suiteId);
+      if (!suite) {
+        res.status(404).json({
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Regression suite not found in project',
+          },
+        });
+        return;
+      }
 
       const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 50;
       const offset = req.query.offset ? parseInt(String(req.query.offset), 10) : 0;
@@ -493,7 +565,7 @@ export function createApiRouter(
     try {
       const user = req.user!;
       const projectId = p(req.params.projectId);
-      await projectService.assertPermission(projectId, user.id, 'project:read');
+      await projectService.assertPermission(projectId, user.id, 'member:manage');
 
       const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 50;
       const offset = req.query.offset ? parseInt(String(req.query.offset), 10) : 0;

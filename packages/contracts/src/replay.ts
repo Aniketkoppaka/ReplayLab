@@ -24,6 +24,7 @@ export type ReplayOutcomeStatus = z.infer<typeof ReplayOutcomeStatusSchema>;
 export const TriggerReplayInputSchema = z.object({
   fixtureId: ResourceIdSchema,
   environmentId: ResourceIdSchema,
+  captureResponseBody: z.boolean().optional().default(false),
 });
 
 export type TriggerReplayInput = z.infer<typeof TriggerReplayInputSchema>;
@@ -36,6 +37,7 @@ export const ReplayResultResponseSchema = z.object({
   id: ResourceIdSchema,
   fixtureId: ResourceIdSchema,
   environmentId: ResourceIdSchema,
+  baselineId: ResourceIdSchema.nullable().optional(),
   status: ReplayOutcomeStatusSchema,
   // Present ONLY if an HTTP response was received (not on TRANSPORT_ERROR, TIMEOUT, or SSRF_BLOCKED)
   httpStatusCode: z.number().int().min(100).max(599).nullable().optional(),
@@ -57,8 +59,9 @@ export type ReplayResultResponse = z.infer<typeof ReplayResultResponseSchema>;
  * Suite execution trigger input.
  */
 export const TriggerSuiteExecutionInputSchema = z.object({
-  suiteId: ResourceIdSchema,
+  suiteId: ResourceIdSchema.optional(),
   environmentId: ResourceIdSchema,
+  captureResponseBody: z.boolean().optional().default(false),
 });
 
 export type TriggerSuiteExecutionInput = z.infer<typeof TriggerSuiteExecutionInputSchema>;
@@ -70,6 +73,7 @@ export const SuiteExecutionSummaryResponseSchema = z.object({
   id: ResourceIdSchema,
   suiteId: ResourceIdSchema,
   environmentId: ResourceIdSchema,
+  status: ReplayOutcomeStatusSchema,
   totalItems: z.number().int().min(0),
   passedItems: z.number().int().min(0),
   failedItems: z.number().int().min(0),

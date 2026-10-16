@@ -113,6 +113,7 @@ export interface ProjectStore {
     projectId: string;
     fixtureId: string;
     environmentId: string;
+    suiteRunId?: string | null;
     baselineId?: string | null;
     status: string;
     httpStatusCode?: number | null;

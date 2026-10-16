@@ -2,6 +2,7 @@ import {
   executeFixtureReplay,
   type ReplayExecutionResult,
   type ReplayExecutionParams,
+  type MaskRule,
 } from '../replay-engine/index.js';
 import { decryptSecret } from '../crypto.js';
 import type { ProjectService, ProjectStore } from './project-service.js';
@@ -13,6 +14,8 @@ export interface TriggerAuthorizedReplayParams {
   userId: string;
   signal?: AbortSignal;
   captureResponseBody?: boolean;
+  suiteRunId?: string;
+  maskRules?: MaskRule[];
 }
 
 export interface ReplayAuditRecord {
@@ -50,7 +53,7 @@ export class AuthorizedReplayService {
   public async triggerReplay(
     params: TriggerAuthorizedReplayParams
   ): Promise<ReplayExecutionResult> {
-    const { projectId, fixtureId, environmentId, userId, signal, captureResponseBody } = params;
+    const { projectId, fixtureId, environmentId, userId, signal, captureResponseBody, suiteRunId, maskRules } = params;
 
     // 1. Authorize: User must have 'replay:execute' on this project
     await this.projectService.assertPermission(projectId, userId, 'replay:execute');
@@ -112,6 +115,7 @@ export class AuthorizedReplayService {
         body: fixture.request.body,
       },
       baseline: baselineSnapshot,
+      maskRules,
       signal,
       captureResponseBody: captureResponseBody ?? false,
     };
@@ -127,6 +131,7 @@ export class AuthorizedReplayService {
         projectId,
         fixtureId: fixture.id,
         environmentId: storedEnv.id,
+        suiteRunId: suiteRunId ?? null,
         baselineId: currentBaselineId ?? null,
         triggeredById: userId,
         status: result.status,
@@ -153,6 +158,7 @@ export class AuthorizedReplayService {
       targetId: fixture.id,
       metadata: {
         runId: persistedRunId,
+        suiteRunId: suiteRunId ?? null,
         environmentId: storedEnv.id,
         status: result.status,
         durationMs: result.durationMs,
@@ -163,6 +169,7 @@ export class AuthorizedReplayService {
     return {
       ...result,
       id: persistedRunId,
+      baselineId: currentBaselineId ?? undefined,
     } as ReplayExecutionResult & { id?: string };
   }
 
@@ -217,56 +224,72 @@ export class AuthorizedReplayService {
     const suiteStartTime = Date.now();
     let overallStatus = 'SUCCESS';
 
-    // 4. Execute fixtures sequentially
-    for (const item of suite.items) {
-      if (signal?.aborted) {
-        overallStatus = 'TIMEOUT';
-        break;
-      }
-
-      try {
-        const fixture = await this.store.getFixture(projectId, item.fixtureId);
-        if (!fixture) {
-          failedItems++;
-          overallStatus = 'ASSERTION_FAILURE';
-          continue;
+    try {
+      // 4. Execute fixtures sequentially
+      for (const item of suite.items) {
+        if (signal?.aborted) {
+          overallStatus = 'TIMEOUT';
+          break;
         }
 
-        // Replay fixture
-        const runResult = await this.triggerReplay({
-          projectId,
-          fixtureId: item.fixtureId,
-          environmentId,
-          userId,
-          signal,
-          captureResponseBody,
-        });
+        try {
+          const fixture = await this.store.getFixture(projectId, item.fixtureId);
+          if (!fixture) {
+            failedItems++;
+            overallStatus = 'ASSERTION_FAILURE';
+            continue;
+          }
 
-        // Evaluate suite-specific assertions if configured
-        let assertionFailed = false;
-        if (item.assertions && item.assertions.length > 0) {
-          for (const assertion of item.assertions) {
-            if (assertion.type === 'STATUS_CODE' && runResult.httpStatusCode !== assertion.expected) {
-              assertionFailed = true;
-            }
-            if (assertion.type === 'RESPONSE_TIME_MAX' && runResult.durationMs > assertion.maxDurationMs) {
-              assertionFailed = true;
+          // Replay fixture with suiteRunId and suite item maskRules
+          const runResult = await this.triggerReplay({
+            projectId,
+            fixtureId: item.fixtureId,
+            environmentId,
+            userId,
+            signal,
+            captureResponseBody,
+            suiteRunId: suiteRun.id,
+            maskRules: item.maskRules,
+          });
+
+          // Evaluate suite-specific assertions if configured
+          let assertionFailed = false;
+          if (item.assertions && item.assertions.length > 0) {
+            for (const assertion of item.assertions) {
+              if (assertion.type === 'STATUS_CODE' && runResult.httpStatusCode !== assertion.expected) {
+                assertionFailed = true;
+              }
+              if (assertion.type === 'RESPONSE_TIME_MAX' && runResult.durationMs > assertion.maxDurationMs) {
+                assertionFailed = true;
+              }
             }
           }
-        }
 
-        if (runResult.status !== 'SUCCESS' || assertionFailed) {
+          if (runResult.status !== 'SUCCESS' || assertionFailed) {
+            failedItems++;
+            overallStatus = 'ASSERTION_FAILURE';
+          } else {
+            passedItems++;
+          }
+
+          results.push(runResult);
+        } catch {
           failedItems++;
-          overallStatus = 'ASSERTION_FAILURE';
-        } else {
-          passedItems++;
+          overallStatus = 'TRANSPORT_ERROR';
         }
-
-        results.push(runResult);
-      } catch {
-        failedItems++;
-        overallStatus = 'TRANSPORT_ERROR';
       }
+    } catch (unhandledErr) {
+      overallStatus = signal?.aborted ? 'TIMEOUT' : 'TRANSPORT_ERROR';
+      const durationMs = Date.now() - suiteStartTime;
+      const completedAt = new Date().toISOString();
+      await this.store.updateSuiteRun(suiteRun.id, {
+        status: overallStatus,
+        passedItems,
+        failedItems,
+        durationMs,
+        completedAt,
+      });
+      throw unhandledErr;
     }
 
     const durationMs = Date.now() - suiteStartTime;

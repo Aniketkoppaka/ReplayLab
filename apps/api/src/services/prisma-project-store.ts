@@ -1120,6 +1120,7 @@ export class PrismaProjectStore implements ProjectStore {
       projectId: run.projectId,
       fixtureId: run.fixtureId,
       environmentId: run.environmentId,
+      suiteRunId: run.suiteRunId,
       baselineId: run.baselineId,
       status: run.status,
       httpStatusCode: run.httpStatusCode,

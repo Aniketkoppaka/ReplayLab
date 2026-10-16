@@ -648,6 +648,88 @@ describe('Authenticated API Foundation Integration Tests', () => {
       expect(logsRes.status).toBe(200);
       expect(Array.isArray(logsRes.body)).toBe(true);
     });
+
+    it('enforces member:manage permission on GET /audit-logs (403 for VIEWER and EDITOR)', async () => {
+      // First ensure viewer and editor are members of this section's project
+      await request(app)
+        .post(`/api/v1/projects/${projectId}/members`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ userId: viewerId, role: 'VIEWER' });
+      await request(app)
+        .post(`/api/v1/projects/${projectId}/members`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ userId: editorId, role: 'EDITOR' });
+
+      // Viewer attempt
+      const viewerRes = await request(app)
+        .get(`/api/v1/projects/${projectId}/audit-logs`)
+        .set('Authorization', `Bearer ${viewerToken}`);
+      expect(viewerRes.status).toBe(403);
+      expect(viewerRes.body.error.code).toBe('FORBIDDEN');
+
+      // Editor attempt
+      const editorRes = await request(app)
+        .get(`/api/v1/projects/${projectId}/audit-logs`)
+        .set('Authorization', `Bearer ${editorToken}`);
+      expect(editorRes.status).toBe(403);
+      expect(editorRes.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('enforces 404 non-disclosure for GET /runs?fixtureId=nonexistent and GET /suites/:suiteId/runs', async () => {
+      // Non-existent fixture query
+      const runsWithMissingFixture = await request(app)
+        .get(`/api/v1/projects/${projectId}/runs?fixtureId=00000000-0000-0000-0000-000000000099`)
+        .set('Authorization', `Bearer ${ownerToken}`);
+      expect(runsWithMissingFixture.status).toBe(404);
+      expect(runsWithMissingFixture.body.error.code).toBe('NOT_FOUND');
+
+      // Non-existent suite runs query
+      const missingSuiteRuns = await request(app)
+        .get(`/api/v1/projects/${projectId}/suites/00000000-0000-0000-0000-000000000099/runs`)
+        .set('Authorization', `Bearer ${ownerToken}`);
+      expect(missingSuiteRuns.status).toBe(404);
+      expect(missingSuiteRuns.body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('records audit events for member assignment, member removal, and baseline updates', async () => {
+      // 1. Assign a new member
+      const newMemberRes = await request(app)
+        .post(`/api/v1/projects/${projectId}/members`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ userId: 'audit-test-user-123', role: 'VIEWER' });
+      expect(newMemberRes.status).toBe(201);
+
+      // 2. Update baseline
+      const baselineRes = await request(app)
+        .post(`/api/v1/projects/${projectId}/fixtures/${fixtureId}/baseline`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({
+          baseline: {
+            statusCode: 200,
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ updated: true }),
+            bodyType: 'JSON',
+          },
+        });
+      expect(baselineRes.status).toBe(200);
+
+      // 3. Remove the member
+      const removeRes = await request(app)
+        .delete(`/api/v1/projects/${projectId}/members/${newMemberRes.body.id}`)
+        .set('Authorization', `Bearer ${ownerToken}`);
+      expect(removeRes.status).toBe(204);
+
+      // 4. Retrieve audit logs and assert events are present
+      const logsRes = await request(app)
+        .get(`/api/v1/projects/${projectId}/audit-logs`)
+        .set('Authorization', `Bearer ${ownerToken}`);
+      expect(logsRes.status).toBe(200);
+
+      const actions = logsRes.body.map((l: { action: string }) => l.action);
+      expect(actions).toContain('MEMBER_ASSIGNED');
+      expect(actions).toContain('BASELINE_UPDATED');
+      expect(actions).toContain('MEMBER_REMOVED');
+    });
   });
 });
 
