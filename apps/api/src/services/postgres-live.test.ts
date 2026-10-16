@@ -200,6 +200,20 @@ conditionalDescribe('Live Supabase PostgreSQL Acceptance & Concurrency Suite', (
       expect(history.length).toBe(2);
       expect(history[0]!.body).toContain('"users":[]');
       expect(history[1]!.body).toContain('usr_1');
+
+      // Verify immutability: store interface offers NO baseline-history update or delete mutations.
+      // Furthermore, subsequent fixture updates do not alter existing baseline history records.
+      await store.updateFixture(projectId, fixtureId, {
+        name: 'Fetch Users Fixture (Renamed)',
+      });
+
+      const historyAfterFixtureRename = await prisma.fixtureBaselineHistory.findMany({
+        where: { fixtureId },
+        orderBy: { createdAt: 'asc' },
+      });
+      expect(historyAfterFixtureRename.length).toBe(2);
+      expect(historyAfterFixtureRename[0]!.body).toBe(history[0]!.body);
+      expect(historyAfterFixtureRename[1]!.body).toBe(history[1]!.body);
     });
 
     it('persists suite and suite fixtures in PostgreSQL', async () => {
@@ -262,16 +276,48 @@ conditionalDescribe('Live Supabase PostgreSQL Acceptance & Concurrency Suite', (
       expect(fixCheck).toBeNull();
     });
 
-    it('survives process restart / store re-instantiation with durable state intact', async () => {
-      // Re-instantiate store and service as if application rebooted
-      const freshStore = new PrismaProjectStore(prisma);
-      const retrieved = await freshStore.getProject(projectId);
-      expect(retrieved).not.toBeNull();
-      expect(retrieved!.name).toBe('Live PG Persistence Test');
+    it('survives API process restart: creating a new app instance preserves all PostgreSQL state', async () => {
+      // Simulate complete process restart: instantiate a separate database client, store, service, and Express app
+      const restartedPrisma = new PrismaClient();
+      const restartedStore = new PrismaProjectStore(restartedPrisma);
+      const restartedProjectService = new ProjectService(restartedStore);
+      const restartedReplayService = new AuthorizedReplayService(restartedProjectService, restartedStore);
+      const restartedApp = createApp({
+        projectService: restartedProjectService,
+        replayService: restartedReplayService,
+      });
 
-      const retrievedEnv = await freshStore.getEnvironment(projectId, envId);
-      expect(retrievedEnv).not.toBeNull();
-      expect(retrievedEnv!.name).toBe('Production Target');
+      try {
+        // Query the restarted Express API instance over HTTP
+        const res = await request(restartedApp)
+          .get(`/api/v1/projects/${projectId}`)
+          .set('Authorization', `Bearer ${tokenOwnerA}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.id).toBe(projectId);
+        expect(res.body.name).toBe('Live PG Persistence Test');
+
+        // Query environment via restarted API instance
+        const envRes = await request(restartedApp)
+          .get(`/api/v1/projects/${projectId}/environments/${envId}`)
+          .set('Authorization', `Bearer ${tokenOwnerA}`);
+
+        expect(envRes.status).toBe(200);
+        expect(envRes.body.id).toBe(envId);
+        expect(envRes.body.name).toBe('Production Target');
+
+        // Query fixture and baseline via restarted API instance
+        const fixRes = await request(restartedApp)
+          .get(`/api/v1/projects/${projectId}/fixtures/${fixtureId}`)
+          .set('Authorization', `Bearer ${tokenOwnerA}`);
+
+        expect(fixRes.status).toBe(200);
+        expect(fixRes.body.id).toBe(fixtureId);
+        expect(fixRes.body.baseline).toBeDefined();
+        expect(fixRes.body.baseline.statusCode).toBe(200);
+      } finally {
+        await restartedPrisma.$disconnect();
+      }
     });
   });
 
