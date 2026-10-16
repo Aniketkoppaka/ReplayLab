@@ -121,6 +121,30 @@
      - Executed full workspace lint (`npx pnpm -r run lint`): 0 errors, 0 warnings across all 5 workspace projects.
      - Executed full workspace typecheck (`npx pnpm -r run typecheck`): 0 errors across all 5 workspace projects.
      - Executed full workspace tests (`npx pnpm -r run test`): 138 tests passing (130 api + 8 web new, 17 total in web), 22 live PG tests skipped without URI, 0 failures.
-     - Executed production build (`npx pnpm -F @replaylab/web run build`): All 11 Next.js routes statically prerendered cleanly.
+## Phase 5.3 — Interactive Replay & Visual Diff Viewer
+- **Status**: Completed & Verified
+- **Completed Actions**:
+  1. **Replay Trigger Interface & Bounded Dispatch**:
+     - Built `ReplayTriggerModal` component in `apps/web/src/components/replay/replay-trigger-modal.tsx` supporting target environment selection, safe egress path preview, opt-in response body capture toggle, and duplicate-submission guards while dispatch is in progress.
+     - Connected directly to existing backend route `POST /projects/:projectId/replay` using `TriggerReplayInputSchema`.
+     - Integrated replay trigger action directly into fixture cards (`/fixtures`) and run history overview (`/runs`).
+  2. **Semantic Visual Diff Viewer**:
+     - Created `VisualDiffViewer` in `apps/web/src/components/replay/visual-diff-viewer.tsx` rendering structured JSON diffs (`ADDED`, `REMOVED`, `CHANGED`, `TYPE_MISMATCH`) using the backend's `compareJsonPayloads` diff format.
+     - Distinctly separates HTTP status code discrepancies from JSON body differences.
+     - Preserves backend secret redaction: sensitive expected/actual field values remain masked.
+     - Gracefully handles omitted response bodies, empty diffs, non-JSON payloads, and baseline assertions.
+  3. **Outcome Status & Error Discrepancy Differentiation**:
+     - Strictly renders exact backend outcome enums: `SUCCESS`, `HTTP_ERROR`, `TRANSPORT_ERROR`, `TIMEOUT`, `SSRF_BLOCKED`, `ASSERTION_FAILURE`.
+     - Strictly separates true HTTP error responses (4xx/5xx from target) from security/network failures (SSRF block, timeout, connection refuse) where `httpStatusCode` is `null`.
+     - Displays duration in milliseconds (`ms`) without fabricated execution progress.
+  4. **Run History & Historical Inspection (`/runs`)**:
+     - Replaced placeholder runs page with full execution history table connected to `GET /projects/:projectId/runs` and `GET /projects/:projectId/runs/:runId`.
+     - Implemented fixture filtering (`?fixtureId=...`), pagination (`limit` and `offset`), duration meters, baseline ID linkage, and detailed modal inspection allowing users to review historical runs and diffs without re-triggering requests.
+  5. **Automated Verification**:
+     - Added comprehensive unit tests in `apps/web/src/lib/replay.test.ts` (8 tests) covering replay input schema, outcome status validations, SSRF blocks with null status code, and structured diff parsing (25 tests total passing in `apps/web`).
+     - Executed full workspace lint (`npx pnpm -r run lint`): 0 errors, 0 warnings across all 5 workspace projects.
+     - Executed full workspace typecheck (`npx pnpm -r run typecheck`): 0 errors across all 5 workspace projects.
+     - Executed full workspace tests (`npx pnpm -r run test`): 146 passed tests (130 backend + 16 web, 25 in web total), 22 live PG tests skipped without URI, 0 failures.
+     - Executed production build (`npx pnpm -F @replaylab/web run build`): All 11 Next.js App Router routes statically prerendered cleanly.
 
 

@@ -16,14 +16,17 @@ import {
   Layers,
   Sparkles,
   ShieldAlert,
+  Play,
 } from 'lucide-react';
 import type {
   FixtureResponse,
+  EnvironmentResponse,
   CreateFixtureInput,
   UpdateFixtureInput,
   HttpMethod,
   BodyType,
 } from '@replaylab/contracts';
+import { ReplayTriggerModal } from '@/components/replay/replay-trigger-modal';
 import {
   CreateFixtureInputSchema,
   UpdateFixtureInputSchema,
@@ -36,6 +39,7 @@ const BODY_TYPES: BodyType[] = ['NONE', 'JSON', 'TEXT'];
 export default function FixturesPage() {
   const { activeProject } = useProject();
   const [fixtures, setFixtures] = useState<FixtureResponse[]>([]);
+  const [environments, setEnvironments] = useState<EnvironmentResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +48,7 @@ export default function FixturesPage() {
   const [targetFixtureId, setTargetFixtureId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [baselineModalFixture, setBaselineModalFixture] = useState<FixtureResponse | null>(null);
+  const [replayModalFixture, setReplayModalFixture] = useState<FixtureResponse | null>(null);
 
   // Form states
   const [name, setName] = useState('');
@@ -66,16 +71,19 @@ export default function FixturesPage() {
   const fetchFixtures = useCallback(async () => {
     if (!activeProject) {
       setFixtures([]);
+      setEnvironments([]);
       return;
     }
 
     try {
       setIsLoading(true);
       setError(null);
-      const data = await apiClient.get<FixtureResponse[]>(
-        `/projects/${activeProject.id}/fixtures`
-      );
-      setFixtures(data);
+      const [fixturesData, envsData] = await Promise.all([
+        apiClient.get<FixtureResponse[]>(`/projects/${activeProject.id}/fixtures`),
+        apiClient.get<EnvironmentResponse[]>(`/projects/${activeProject.id}/environments`),
+      ]);
+      setFixtures(fixturesData);
+      setEnvironments(envsData);
     } catch (err: unknown) {
       if (err instanceof ApiClientError) {
         setError(`[${err.code}] ${err.message}`);
@@ -456,11 +464,20 @@ export default function FixturesPage() {
                     <div className="flex items-center gap-2 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-slate-800">
                       <button
                         type="button"
+                        onClick={() => setReplayModalFixture(fixture)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 shadow shadow-indigo-600/20 transition"
+                      >
+                        <Play className="h-3 w-3 fill-current" />
+                        Replay
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => openBaselineModal(fixture)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition"
                       >
                         <Layers className="h-3.5 w-3.5" />
-                        Baseline Snapshot
+                        Baseline
                       </button>
 
                       <button
@@ -832,6 +849,16 @@ export default function FixturesPage() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Interactive Replay Trigger Modal */}
+          {replayModalFixture && activeProject && (
+            <ReplayTriggerModal
+              projectId={activeProject.id}
+              fixture={replayModalFixture}
+              environments={environments}
+              onClose={() => setReplayModalFixture(null)}
+            />
           )}
         </div>
       </AppShell>

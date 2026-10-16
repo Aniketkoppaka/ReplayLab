@@ -32,8 +32,8 @@
 ## Phase 5: Next.js Frontend (apps/web)
 - [x] Initialize Next.js App Router with Tailwind CSS and shadcn/ui foundation (Phase 5.1).
 - [x] Environment and Fixture management views with secret masking and baseline snapshots (Phase 5.2).
-- [ ] Interactive Replay trigger and live execution status (Phase 5.3).
-- [ ] Visual side-by-side diff viewer for response comparisons (Phase 5.4).
+- [x] Interactive Replay trigger, visual diff viewer, and durable run history (Phase 5.3).
+- [ ] Regression suite dashboard and automated multi-fixture test runner (Phase 5.4).
 
 ## Phase 6: CI Automation & Production Verification
 - [ ] Playwright E2E test suite covering full user journey.
