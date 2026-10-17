@@ -157,7 +157,7 @@ test.describe('ReplayLab End-to-End User Journeys', () => {
 
   test('06. Regression Suite Management & Execution', async () => {
     await sharedPage.goto('/suites');
-    await expect(sharedPage.getByRole('heading', { name: 'Regression Suites' })).toBeVisible();
+    await expect(sharedPage.getByRole('heading', { name: 'Regression Suites', exact: true })).toBeVisible();
 
     // Click Create Suite
     const createSuiteBtn = sharedPage.getByRole('button', { name: /New Regression Suite|Create First Suite/i }).first();
