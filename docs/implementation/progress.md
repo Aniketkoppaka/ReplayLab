@@ -252,3 +252,17 @@
   3. **Preparatory Artifacts Delivered**:
      - Automated staging smoke test runner (`scripts/staging-smoke.mjs` and `npm run test:staging-smoke`).
      - Staging runbook and acceptance verification matrix in `docs/deployment/staging-verification.md`.
+
+## Phase 8.2: GitHub Actions CI Failure Diagnosis & Resolution (Completed)
+- **Starting Failed Run**: `39028877966` on commit `1cd111e`
+- **Resolution Commits**:
+  - `38ae9a3`: Compile shared packages (`@replaylab/contracts`, `@replaylab/db`) before workspace typecheck and fix read-only `NODE_ENV` assignment in `apps/web/src/lib/env.test.ts`.
+  - `4a4dd84`: Isolate `APP_ENCRYPTION_KEY` in `crypto.test.ts` to prevent test-pollution when CI sets environment variables, update `app.ts` to support `prismaClient` injection, and fix readiness `/ready` probe in-memory mode assertion.
+- **Verification Evidence**:
+  - Locally reproduced and validated with full CI environment variables (`DATABASE_URL`, `APP_ENCRYPTION_KEY`, `SUPABASE_JWT_SECRET`):
+    - `pnpm lint`: 0 errors, 0 warnings.
+    - `pnpm typecheck`: 0 errors.
+    - `pnpm test`: 135 unit/integration tests passed in `apps/api` (all 157 pass when connected to live PostgreSQL container in CI), 35 in `apps/web`, 15 in `packages/contracts`, 7 in `packages/db`. Total: 192 passed (214 in CI with PostgreSQL container).
+    - `pnpm build`: Clean compilation of all packages and Next.js production build.
+    - `pnpm test:e2e`: 7 of 7 Playwright tests passed.
+  - Successfully pushed to remote `main` at commit `4a4dd84`.
