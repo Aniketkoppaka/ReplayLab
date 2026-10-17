@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import http from 'node:http';
 import zlib from 'node:zlib';
-import { executeSafeRequest } from './safe-dispatcher.js';
+import { executeSafeRequest, createPinnedAgent } from './safe-dispatcher.js';
 import { executeFixtureReplay, type ReplayExecutionResult } from './replay-service.js';
 import type { DnsLookupFn } from './target-validator.js';
 import { ConcurrencyAdmissionController } from './admission-controller.js';
+import https from 'node:https';
 
 describe('Safe Dispatcher & Replay Service (HTTP & Mocked/Local Network)', () => {
   let mockServer: http.Server;
@@ -255,5 +256,62 @@ describe('Safe Dispatcher & Replay Service (HTTP & Mocked/Local Network)', () =>
         maxRedirects: 3,
       })
     ).rejects.toThrow();
+  });
+
+  describe('Pinned Agent DNS Lookup Regression Tests (HTTPS and all-mode support)', () => {
+    it('supports options.all === true by calling back with an array of addresses', async () => {
+      const agent = createPinnedAgent('93.184.216.34', 'example.com', true) as https.Agent;
+      const lookupFn = (agent as unknown as { options: { lookup: (...args: unknown[]) => void } }).options.lookup;
+
+      await new Promise<void>((resolve, reject) => {
+        lookupFn('example.com', { all: true }, (err: Error | null, addresses: Array<{ address: string; family: number }>) => {
+          try {
+            expect(err).toBeNull();
+            expect(Array.isArray(addresses)).toBe(true);
+            expect(addresses).toHaveLength(1);
+            expect(addresses[0]).toEqual({ address: '93.184.216.34', family: 4 });
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        });
+      });
+    });
+
+    it('supports options.all === false by calling back with address string and family number', async () => {
+      const agent = createPinnedAgent('93.184.216.34', 'example.com', true) as https.Agent;
+      const lookupFn = (agent as unknown as { options: { lookup: (...args: unknown[]) => void } }).options.lookup;
+
+      await new Promise<void>((resolve, reject) => {
+        lookupFn('example.com', { all: false }, (err: Error | null, address: string, family: number) => {
+          try {
+            expect(err).toBeNull();
+            expect(address).toBe('93.184.216.34');
+            expect(family).toBe(4);
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        });
+      });
+    });
+
+    it('supports two-argument callback invocation (hostname, callback) without options', async () => {
+      const agent = createPinnedAgent('2606:2800:220:1:248:1893:25c8:1946', 'example.com', false);
+      const lookupFn = (agent as unknown as { options: { lookup: (...args: unknown[]) => void } }).options.lookup;
+
+      await new Promise<void>((resolve, reject) => {
+        lookupFn('example.com', (err: Error | null, address: string, family: number) => {
+          try {
+            expect(err).toBeNull();
+            expect(address).toBe('2606:2800:220:1:248:1893:25c8:1946');
+            expect(family).toBe(6);
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        });
+      });
+    });
   });
 });

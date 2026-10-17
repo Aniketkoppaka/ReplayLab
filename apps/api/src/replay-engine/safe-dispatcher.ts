@@ -33,14 +33,34 @@ export interface DispatchResponse {
  * while setting the TLS servername to the original hostname for valid SNI & certificate checking.
  * This completely eliminates DNS rebinding TOCTOU vulnerabilities.
  */
-function createPinnedAgent(targetIp: string, originalHostname: string, isHttps: boolean) {
+export function createPinnedAgent(targetIp: string, originalHostname: string, isHttps: boolean) {
+  const family = net.isIP(targetIp);
+
+  // Custom lookup supporting all Node.js dns.lookup signatures and options.all
+  const lookup = (
+    _hostname: string,
+    optionsOrCallback: unknown,
+    maybeCallback?: unknown
+  ) => {
+    const callback = typeof optionsOrCallback === 'function'
+      ? optionsOrCallback
+      : (maybeCallback as ((err: Error | null, address?: unknown, family?: number) => void));
+
+    const options = typeof optionsOrCallback === 'object' && optionsOrCallback !== null
+      ? (optionsOrCallback as { all?: boolean })
+      : {};
+
+    if (options.all) {
+      callback(null, [{ address: targetIp, family }]);
+    } else {
+      callback(null, targetIp, family);
+    }
+  };
+
   if (isHttps) {
     return new https.Agent({
       // Socket connects directly to targetIp
-      lookup: (_hostname, _options, callback) => {
-        const family = net.isIP(targetIp);
-        callback(null, targetIp, family);
-      },
+      lookup: lookup as unknown as https.AgentOptions['lookup'],
       // SNI and certificate check uses originalHostname
       servername: originalHostname,
       keepAlive: false,
@@ -48,10 +68,7 @@ function createPinnedAgent(targetIp: string, originalHostname: string, isHttps: 
   }
 
   return new http.Agent({
-    lookup: (_hostname, _options, callback) => {
-      const family = net.isIP(targetIp);
-      callback(null, targetIp, family);
-    },
+    lookup: lookup as unknown as http.AgentOptions['lookup'],
     keepAlive: false,
   });
 }
