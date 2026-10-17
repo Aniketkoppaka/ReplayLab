@@ -42,7 +42,11 @@ describe('Public Environment Schema & Secrets Protection', () => {
   });
 
   it('disables dev token injection in production mode when Supabase is configured and devAuth is not forced', () => {
-    process.env.NODE_ENV = 'production';
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: 'production',
+      configurable: true,
+      writable: true,
+    });
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://prod.supabase.co';
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'prod-anon-key';
     delete process.env.NEXT_PUBLIC_ENABLE_DEV_AUTH;

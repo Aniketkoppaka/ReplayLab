@@ -58,6 +58,9 @@ jobs:
       - name: Run Prisma Database Migrations
         run: corepack pnpm --filter @replaylab/db run prisma:deploy
 
+      - name: Build shared packages
+        run: corepack pnpm --filter @replaylab/contracts --filter @replaylab/db run build
+
       - name: Lint workspace
         run: corepack pnpm lint
 
