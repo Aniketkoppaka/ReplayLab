@@ -43,10 +43,15 @@ describe('api baseline smoke test', () => {
 
   it('serves 503 degraded readiness probe when database is unreachable', async () => {
     const prevDbUrl = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = 'postgresql://invalid_user:invalid_pass@127.0.0.1:54329/invalid_db?schema=public';
     try {
-      // Point to an invalid unreachable PostgreSQL port
-      process.env.DATABASE_URL = 'postgresql://invalid_user:invalid_pass@127.0.0.1:54329/invalid_db?schema=public';
-      const app = createApp();
+      const mockUnreachableClient = {
+        $queryRaw: async () => {
+          throw new Error('Connection refused at 127.0.0.1:54329');
+        },
+      } as any;
+
+      const app = createApp({ prismaClient: mockUnreachableClient });
       const res = await request(app).get('/ready');
       expect(res.status).toBe(503);
       expect(res.body.status).toBe('degraded');

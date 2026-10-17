@@ -12,7 +12,15 @@ describe('AES-256-GCM Secret Crypto Service (ADR-0005)', () => {
   it('rejects invalid key lengths or missing key', () => {
     expect(() => parseEncryptionKey('')).toThrow();
     expect(() => parseEncryptionKey('too-short')).toThrow();
-    expect(() => parseEncryptionKey(undefined)).toThrow();
+    const prevKey = process.env.APP_ENCRYPTION_KEY;
+    try {
+      delete process.env.APP_ENCRYPTION_KEY;
+      expect(() => parseEncryptionKey(undefined)).toThrow();
+    } finally {
+      if (prevKey !== undefined) {
+        process.env.APP_ENCRYPTION_KEY = prevKey;
+      }
+    }
   });
 
   it('encrypts and successfully decrypts secret plaintext', () => {

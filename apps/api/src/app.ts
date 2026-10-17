@@ -11,6 +11,7 @@ export interface AppOptions {
   projectService?: ProjectService;
   replayService?: AuthorizedReplayService;
   useInMemoryStore?: boolean;
+  prismaClient?: typeof prisma;
 }
 
 export function createApp(options?: AppOptions): Express {
@@ -30,11 +31,13 @@ export function createApp(options?: AppOptions): Express {
     }
   }
 
+  const dbClient = options?.prismaClient ?? prisma;
+
   // When explicitly requested (e.g. unit tests) or when DB is disabled in non-prod, use InMemoryProjectStore.
   const store =
     options?.useInMemoryStore || !process.env.DATABASE_URL
       ? new InMemoryProjectStore()
-      : new PrismaProjectStore(prisma);
+      : new PrismaProjectStore(dbClient);
 
   const projectService = options?.projectService ?? new ProjectService(store);
   const replayService =
@@ -87,10 +90,10 @@ export function createApp(options?: AppOptions): Express {
       }
     }
 
-    // Check database if in production or if DATABASE_URL is set
-    if (process.env.DATABASE_URL) {
+    // Check database if not explicitly using in-memory store and DATABASE_URL is set
+    if (!options?.useInMemoryStore && process.env.DATABASE_URL) {
       try {
-        await prisma.$queryRaw`SELECT 1`;
+        await dbClient.$queryRaw`SELECT 1`;
         checks.database = 'connected';
       } catch {
         checks.database = 'unreachable';
