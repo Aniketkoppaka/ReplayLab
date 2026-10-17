@@ -5,13 +5,13 @@ import { AuthorizedReplayService } from './services/authorized-replay-service.js
 import { createApiRouter } from './routes/api-router.js';
 
 import { PrismaProjectStore } from './services/prisma-project-store.js';
-import { prisma } from '@replaylab/db';
+import { prisma, type PrismaClient } from '@replaylab/db';
 
 export interface AppOptions {
   projectService?: ProjectService;
   replayService?: AuthorizedReplayService;
   useInMemoryStore?: boolean;
-  prismaClient?: typeof prisma;
+  prismaClient?: PrismaClient;
 }
 
 export function createApp(options?: AppOptions): Express {

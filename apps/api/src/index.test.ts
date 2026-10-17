@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
+import type { PrismaClient } from '@replaylab/db';
 import { API_VERSION, getSystemInfo, createApp, startServer } from './index.js';
 
 describe('api baseline smoke test', () => {
@@ -49,7 +50,7 @@ describe('api baseline smoke test', () => {
         $queryRaw: async () => {
           throw new Error('Connection refused at 127.0.0.1:54329');
         },
-      } as any;
+      } as unknown as PrismaClient;
 
       const app = createApp({ prismaClient: mockUnreachableClient });
       const res = await request(app).get('/ready');
