@@ -40,6 +40,8 @@ export interface ReplayExecutionParams {
   limiter?: ConcurrencyAdmissionController;
   /** Optional cancellation signal */
   signal?: AbortSignal;
+  /** Optional custom dispatcher function for testing */
+  dispatchFn?: (options: DispatchOptions) => Promise<DispatchResponse>;
   /**
    * Safe response capture policy:
    * Defaults to false (storing null body in result to prevent secret/data leaks).
@@ -135,7 +137,8 @@ export async function executeFixtureReplay(
     };
 
     try {
-      const response: DispatchResponse = await executeSafeRequest(dispatchOptions);
+      const dispatcher = params.dispatchFn ?? executeSafeRequest;
+      const response: DispatchResponse = await dispatcher(dispatchOptions);
 
       const isHttpError = response.statusCode >= 400;
       let diffFound = false;
@@ -161,8 +164,12 @@ export async function executeFixtureReplay(
             ],
           };
         } else {
-          // Compare payload if present
-          if (params.baseline.body !== undefined && response.body !== undefined) {
+          // Compare payload if present and bodyType is not 'NONE'
+          if (
+            params.baseline.bodyType !== 'NONE' &&
+            params.baseline.body !== undefined &&
+            response.body !== undefined
+          ) {
             diffDetails = compareJsonPayloads(
               params.baseline.body,
               response.body,

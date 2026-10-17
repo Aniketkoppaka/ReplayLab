@@ -35,6 +35,9 @@ describe('Safe Dispatcher & Replay Service (HTTP & Mocked/Local Network)', () =>
           });
           res.end(gzipped);
         });
+      } else if (req.url === '/empty-200') {
+        res.writeHead(200);
+        res.end();
       } else if (req.url === '/redirect-to-private') {
         res.writeHead(302, {
           Location: 'http://169.254.169.254/latest/meta-data',
@@ -312,6 +315,136 @@ describe('Safe Dispatcher & Replay Service (HTTP & Mocked/Local Network)', () =>
           }
         });
       });
+    });
+  });
+
+  describe('Baseline bodyType: NONE Semantics Regression Tests', () => {
+    const createMockDispatcher = (statusCode: number, body: unknown, bodyRaw = '') => {
+      return async () => ({
+        statusCode,
+        headers: { 'content-type': 'application/json' },
+        body,
+        bodyRaw,
+        durationMs: 12,
+      });
+    };
+
+    it('succeeds when bodyType is NONE and actual response body is empty', async () => {
+      const result = await executeFixtureReplay({
+        fixtureId: 'fix_none_empty',
+        projectId: 'prj_1',
+        environmentId: 'env_1',
+        environmentBaseUrl: 'http://test.local',
+        request: { method: 'GET', path: '/empty-200' },
+        baseline: {
+          statusCode: 200,
+          bodyType: 'NONE',
+          body: null,
+        },
+        dispatchFn: createMockDispatcher(200, '', ''),
+      });
+
+      expect(result.status).toBe('SUCCESS');
+      expect(result.httpStatusCode).toBe(200);
+      expect(result.diffFound).toBe(false);
+      expect(result.diffDetails).toBeNull();
+    });
+
+    it('succeeds when bodyType is NONE and actual response body is non-empty', async () => {
+      const result = await executeFixtureReplay({
+        fixtureId: 'fix_none_non_empty',
+        projectId: 'prj_1',
+        environmentId: 'env_1',
+        environmentBaseUrl: 'http://test.local',
+        request: { method: 'GET', path: '/v1/users' },
+        baseline: {
+          statusCode: 200,
+          bodyType: 'NONE',
+          body: null,
+        },
+        dispatchFn: createMockDispatcher(200, { users: ['alice', 'bob'] }, '{"users":["alice","bob"]}'),
+      });
+
+      // Status 200 matched, body comparison was skipped despite non-empty body
+      expect(result.status).toBe('SUCCESS');
+      expect(result.httpStatusCode).toBe(200);
+      expect(result.diffFound).toBe(false);
+      expect(result.diffDetails).toBeNull();
+    });
+
+    it('fails when bodyType is NONE but HTTP status code mismatches', async () => {
+      const result = await executeFixtureReplay({
+        fixtureId: 'fix_none_status_mismatch',
+        projectId: 'prj_1',
+        environmentId: 'env_1',
+        environmentBaseUrl: 'http://test.local',
+        request: { method: 'GET', path: '/empty-200' },
+        baseline: {
+          statusCode: 201, // Mismatched status
+          bodyType: 'NONE',
+          body: null,
+        },
+        dispatchFn: createMockDispatcher(200, '', ''),
+      });
+
+      expect(result.status).toBe('ASSERTION_FAILURE');
+      expect(result.diffFound).toBe(true);
+      expect(result.diffDetails?.differences).toEqual([
+        {
+          path: '$statusCode',
+          type: 'CHANGED',
+          expected: 201,
+          actual: 200,
+        },
+      ]);
+    });
+
+    it('continues to compare response bodies when bodyType is JSON', async () => {
+      const result = await executeFixtureReplay({
+        fixtureId: 'fix_json_diff',
+        projectId: 'prj_1',
+        environmentId: 'env_1',
+        environmentBaseUrl: 'http://test.local',
+        request: { method: 'GET', path: '/v1/users' },
+        baseline: {
+          statusCode: 200,
+          bodyType: 'JSON',
+          body: { status: 'ok', count: 999 }, // Mismatches count: 1
+        },
+        dispatchFn: createMockDispatcher(200, { status: 'ok', count: 1 }, '{"status":"ok","count":1}'),
+      });
+
+      expect(result.status).toBe('ASSERTION_FAILURE');
+      expect(result.diffFound).toBe(true);
+      expect(result.diffDetails?.match).toBe(false);
+      expect(result.diffDetails?.differences).toEqual([
+        {
+          path: '$.count',
+          type: 'CHANGED',
+          expected: 999,
+          actual: 1,
+        },
+      ]);
+    });
+
+    it('continues to compare response bodies when bodyType is TEXT', async () => {
+      const result = await executeFixtureReplay({
+        fixtureId: 'fix_text_diff',
+        projectId: 'prj_1',
+        environmentId: 'env_1',
+        environmentBaseUrl: 'http://test.local',
+        request: { method: 'GET', path: '/empty-200' },
+        baseline: {
+          statusCode: 200,
+          bodyType: 'TEXT',
+          body: 'some expected text',
+        },
+        dispatchFn: createMockDispatcher(200, '', ''),
+      });
+
+      expect(result.status).toBe('ASSERTION_FAILURE');
+      expect(result.diffFound).toBe(true);
+      expect(result.diffDetails?.match).toBe(false);
     });
   });
 });
