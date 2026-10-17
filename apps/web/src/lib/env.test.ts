@@ -15,24 +15,24 @@ describe('Public Environment Schema & Secrets Protection', () => {
   it('parses valid public environment configuration', () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://abcdefghijkl.supabase.co';
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'ey-anon-token';
-    process.env.NEXT_PUBLIC_API_URL = 'http://localhost:3001';
+    process.env.NEXT_PUBLIC_API_URL = 'http://localhost:3001/api/v1';
 
     const env = getPublicEnv();
     expect(env.supabaseUrl).toBe('https://abcdefghijkl.supabase.co');
     expect(env.supabaseAnonKey).toBe('ey-anon-token');
-    expect(env.apiUrl).toBe('http://localhost:3001');
+    expect(env.apiUrl).toBe('http://localhost:3001/api/v1');
   });
 
-  it('defaults apiUrl to http://localhost:3001 when omitted', () => {
+  it('defaults apiUrl to http://localhost:3001/api/v1 when omitted', () => {
     delete process.env.NEXT_PUBLIC_API_URL;
     const env = getPublicEnv();
-    expect(env.apiUrl).toBe('http://localhost:3001');
+    expect(env.apiUrl).toBe('http://localhost:3001/api/v1');
   });
 
   it('strictly excludes server secrets from public schema properties', () => {
     // Assert that the public schema only has the permitted public keys
     const shapeKeys = Object.keys(PublicEnvSchema.shape);
-    expect(shapeKeys).toEqual(['supabaseUrl', 'supabaseAnonKey', 'apiUrl']);
+    expect(shapeKeys).toEqual(['supabaseUrl', 'supabaseAnonKey', 'apiUrl', 'enableDevAuth']);
 
     // Critical security assertions: ensure dangerous variables are NOT in PublicEnvSchema
     expect(shapeKeys).not.toContain('DATABASE_URL');

@@ -21,14 +21,24 @@ const ProjectContext = createContext<ProjectContextValue | undefined>(undefined)
 const STORAGE_KEY = 'replaylab_active_project_id';
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const [projects, setProjects] = useState<ProjectResponse[]>([]);
-  const [activeProjectId, setActiveProjectIdState] = useState<string | null>(null);
+  const [activeProjectId, setActiveProjectIdState] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(STORAGE_KEY);
+    }
+    return null;
+  });
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   const refreshProjects = useCallback(async () => {
-    if (!user && !token) {
+    let activeAuthToken = token;
+    if (!activeAuthToken && typeof window !== 'undefined') {
+      activeAuthToken = sessionStorage.getItem('replaylab_dev_token');
+    }
+
+    if (!activeAuthToken) {
       setProjects([]);
       setActiveProjectIdState(null);
       setIsLoading(false);
@@ -38,7 +48,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await apiClient.get<ProjectResponse[]>('/projects');
+      const data = await apiClient.get<ProjectResponse[]>('/projects', { token: activeAuthToken });
       setProjects(data);
 
       // Restore stored active project or select first available
@@ -72,7 +82,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [user, token]);
+  }, [token]);
 
   useEffect(() => {
     void refreshProjects();
@@ -86,14 +96,15 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const createProject = useCallback(async (input: CreateProjectInput): Promise<ProjectResponse> => {
-    const created = await apiClient.post<ProjectResponse>('/projects', input);
+    const created = await apiClient.post<ProjectResponse>('/projects', input, { token });
+    setError(null);
     setProjects((prev) => [created, ...prev]);
     setActiveProjectId(created.id);
     return created;
-  }, [setActiveProjectId]);
+  }, [setActiveProjectId, token]);
 
   const deleteProject = useCallback(async (id: string): Promise<void> => {
-    await apiClient.delete(`/projects/${id}`);
+    await apiClient.delete(`/projects/${id}`, { token });
     setProjects((prev) => prev.filter((p) => p.id !== id));
     setActiveProjectIdState((curr) => {
       if (curr === id) {

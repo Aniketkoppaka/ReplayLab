@@ -43,6 +43,9 @@ export class ApiClient {
     if (token === undefined && this.getTokenFn) {
       token = await this.getTokenFn();
     }
+    if ((token === undefined || token === null) && typeof window !== 'undefined') {
+      token = window.sessionStorage.getItem('replaylab_dev_token');
+    }
 
     const headers = new Headers(customHeaders);
     headers.set('Accept', 'application/json');

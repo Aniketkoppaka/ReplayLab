@@ -13,10 +13,12 @@
     "lint": "pnpm -r run lint",
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm -r run test",
+    "test:e2e": "playwright test",
     "clean": "pnpm -r run clean"
   },
   "devDependencies": {
     "@eslint/js": "^9.20.0",
+    "@playwright/test": "^1.64.1",
     "@types/node": "^22.13.4",
     "eslint": "^9.20.1",
     "globals": "^15.15.0",

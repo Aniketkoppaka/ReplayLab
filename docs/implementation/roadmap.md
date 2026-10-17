@@ -36,6 +36,8 @@
 - [x] Regression suite dashboard and automated multi-fixture test runner (Phase 5.4).
 
 ## Phase 6: CI Automation & Production Verification
-- [ ] Playwright E2E test suite covering full user journey.
-- [ ] Automated regression testing pipeline.
-- [ ] Deployment runbooks for Vercel (web) and containerized backend (api).
+- [x] Playwright E2E test suite covering full user journey (auth, projects, environments, fixtures, replays, suites, multi-tenant isolation).
+- [x] Automated regression testing and CI verification pipeline (`.github/workflows/ci.yml`).
+- [x] Production readiness: `/health` & `/ready` probes, graceful shutdown handlers, security headers, CORS origin enforcement.
+- [x] Deployment runbooks and disaster recovery documentation in `docs/deployment/`.
+

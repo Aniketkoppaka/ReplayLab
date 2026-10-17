@@ -8,8 +8,31 @@ on:
 
 jobs:
   validate:
-    name: Workspace Verification & Quality Gates
+    name: Workspace Verification, Quality Gates & Playwright E2E
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: replaylab_test
+          POSTGRES_PASSWORD: replaylab_test_password
+          POSTGRES_DB: replaylab_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://replaylab_test:replaylab_test_password@localhost:5432/replaylab_test?schema=public
+      SUPABASE_JWT_SECRET: e2e-playwright-ci-jwt-secret-min-32-chars-ok!
+      APP_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      NEXT_PUBLIC_ENABLE_DEV_AUTH: "true"
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+      NODE_ENV: test
 
     steps:
       - name: Checkout repository
@@ -18,7 +41,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24.x
+          node-version: 22.x
 
       - name: Setup Corepack
         run: corepack enable
@@ -29,14 +52,34 @@ jobs:
       - name: Install dependencies
         run: corepack pnpm install --frozen-lockfile
 
+      - name: Run Prisma Generate
+        run: corepack pnpm --filter @replaylab/db run prisma:generate
+
+      - name: Run Prisma Database Migrations
+        run: corepack pnpm --filter @replaylab/db run prisma:deploy
+
       - name: Lint workspace
         run: corepack pnpm lint
 
       - name: Typecheck workspace
         run: corepack pnpm typecheck
 
-      - name: Test workspace
+      - name: Test workspace (including live PostgreSQL integration tests)
         run: corepack pnpm test
 
       - name: Build workspace
         run: corepack pnpm build
+
+      - name: Install Playwright Chromium Browsers & System Dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright End-to-End User Journeys
+        run: corepack pnpm run test:e2e
+
+      - name: Upload Playwright Test Report Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14

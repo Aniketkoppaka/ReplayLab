@@ -16,6 +16,7 @@ export function getSystemInfo() {
 }
 
 export { createApp, type AppOptions } from './app.js';
+export { startServer } from './server.js';
 export * from './auth/index.js';
 export * from './services/project-service.js';
 export * from './services/in-memory-project-store.js';

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/auth-provider';
 import { Activity, Key, LogIn, AlertCircle } from 'lucide-react';
+import { getPublicEnv } from '@/lib/env';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,6 +15,8 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mode, setMode] = useState<'supabase' | 'dev'>('supabase');
+
+  const { enableDevAuth } = getPublicEnv();
 
   const handleSupabaseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,8 +61,8 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Tab switch between Supabase and Dev Token (Dev Token only allowed in non-production) */}
-        {process.env.NODE_ENV !== 'production' && (
+        {/* Tab switch between Supabase and Dev Token (Dev Token only allowed in non-production or dev-auth mode) */}
+        {enableDevAuth && (
           <div className="mb-6 flex rounded-lg bg-slate-800/80 p-1 border border-slate-700/60">
             <button
               type="button"

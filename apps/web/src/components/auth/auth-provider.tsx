@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState, useMemo } from '
 import type { User, Session } from '@supabase/supabase-js';
 import { getSupabaseClient } from '@/lib/supabase';
 import { apiClient } from '@/lib/api-client';
+import { getPublicEnv } from '@/lib/env';
 
 export interface AuthContextValue {
   user: User | null;
@@ -19,19 +20,50 @@ export interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('replaylab_dev_token');
+    }
+    return null;
+  });
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('replaylab_dev_token');
+      if (stored) {
+        return {
+          id: 'dev_user',
+          app_metadata: {},
+          user_metadata: { name: 'Developer User' },
+          aud: 'authenticated',
+          created_at: new Date().toISOString(),
+        } as User;
+      }
+    }
+    return null;
+  });
   const [session, setSession] = useState<Session | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('replaylab_dev_token')) {
+      return false;
+    }
+    return true;
+  });
 
   // Hook API client token provider to current token state
   useEffect(() => {
-    apiClient.setTokenProvider(() => token);
+    apiClient.setTokenProvider(() => {
+      if (token) return token;
+      if (typeof window !== 'undefined') {
+        return sessionStorage.getItem('replaylab_dev_token');
+      }
+      return null;
+    });
   }, [token]);
 
   useEffect(() => {
-    // Check if a dev token was stored in sessionStorage (ONLY in non-production environments)
-    if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+    // Check if a dev token was stored in sessionStorage (when dev auth is enabled)
+    const { enableDevAuth } = getPublicEnv();
+    if (typeof window !== 'undefined' && enableDevAuth) {
       const storedDevToken = sessionStorage.getItem('replaylab_dev_token');
       if (storedDevToken) {
         setToken(storedDevToken);

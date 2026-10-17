@@ -171,3 +171,45 @@
      - Executed production build (`npx pnpm -F @replaylab/web run build`): All 11 Next.js App Router routes statically prerendered cleanly.
 
 
+
+## Phase 6 — CI Automation & Production Verification
+- **Status**: Completed & Verified
+- **Completed Actions**:
+  1. **Baseline Reconciliation & Test Audit (Stage 0)**:
+     - Reconciled monorepo unit and integration test counts across packages: `@replaylab/contracts` (15), `@replaylab/db` (7), `@replaylab/api` (134 passed, 22 skipped live PostgreSQL), and `@replaylab/web` (34).
+     - Confirmed all workspace quality gates (lint, typecheck, build, test) pass with zero warnings or errors.
+  2. **Automated CI Workflow & PostgreSQL Service Container (Stage 1)**:
+     - Implemented `.github/workflows/ci.yml` running on Node 22.x LTS with Corepack and pnpm.
+     - Added PostgreSQL 16 container service with automated healthchecks, Prisma client generation, and migration deployment (`prisma migrate deploy`).
+     - Executed quality gates: workspace lint, typecheck, tests (including live PostgreSQL integration tests), production build, Playwright browser installation, and E2E test execution with 14-day artifact retention for test reports.
+  3. **Playwright End-to-End User Journey Suite (Stage 2)**:
+     - Created `playwright.config.ts` running against Next.js production web server (`port: 3000`) and mock target demo API.
+     - Implemented `e2e/fixtures/test-api.ts` with in-memory store and test token generation.
+     - Implemented `e2e/fixtures/demo-server.ts` providing deterministic target endpoints for baseline comparison and SSRF defense validation.
+     - Created `e2e/full-journey.spec.ts` exercising 7 end-to-end user journeys:
+       1. Authentication & Session Initialization via Developer Token.
+       2. Project Creation & Active Project Context Selection.
+       3. Environment Configuration with Base URL and Masked Secret Variables (`[ENCRYPTED]`).
+       4. Fixture Creation & Explicit Immutable Baseline Snapshot Configuration.
+       5. Interactive Replay Trigger & SSRF Defensive Protection Verification.
+       6. Regression Suite Management, Fixture Sequencing & Execution.
+       7. Multi-Tenant Project Isolation Protection (non-disclosure boundary).
+     - Verified all 7 Playwright tests pass cleanly (13.4s).
+  4. **Production Readiness, Health Probes & Graceful Shutdown (Stage 3)**:
+     - Enhanced `apps/api/src/app.ts` with security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Strict-Transport-Security`).
+     - Added configurable CORS middleware (`CORS_ORIGIN`).
+     - Implemented liveness probe `GET /health` returning status, uptime, and version.
+     - Implemented readiness probe `GET /ready` verifying database connectivity and AES-256 encryption key configuration.
+     - Implemented `apps/api/src/server.ts` with graceful shutdown handlers for `SIGTERM` and `SIGINT`, socket draining, ongoing task completion, and Prisma disconnection.
+     - Added 4 unit tests in `apps/api/src/index.test.ts` verifying `/health`, `/ready`, security headers, and `startServer` lifecycles.
+     - Added deployment and operational runbooks in `docs/deployment/`:
+       - `docs/deployment/README.md`: Architecture overview and hosting topologies.
+       - `docs/deployment/environment-variables.md`: Comprehensive matrix of public, server, and secret variables.
+       - `docs/deployment/runbook.md`: Health probes, rolling zero-downtime deployments, socket draining, and scaling policies.
+       - `docs/deployment/rollback.md`: Rollback playbook, disaster recovery, and database migration backward-compatibility invariants.
+  5. **Final Quality Verification (Stage 4)**:
+     - Monorepo lint: 0 errors, 0 warnings across all 5 workspace projects.
+     - Monorepo typecheck: 0 errors across all 5 workspace projects.
+     - Monorepo unit/integration tests: 190 passed tests (134 api + 34 web + 15 contracts + 7 db), 22 live PG tests skipped without URI, 0 failures.
+     - Monorepo build: clean compilation across all packages.
+     - Playwright E2E: 7/7 tests passed cleanly.
