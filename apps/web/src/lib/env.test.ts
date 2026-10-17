@@ -40,4 +40,14 @@ describe('Public Environment Schema & Secrets Protection', () => {
     expect(shapeKeys).not.toContain('APP_ENCRYPTION_KEY');
     expect(shapeKeys).not.toContain('SUPABASE_JWT_SECRET');
   });
+
+  it('disables dev token injection in production mode when Supabase is configured and devAuth is not forced', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://prod.supabase.co';
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'prod-anon-key';
+    delete process.env.NEXT_PUBLIC_ENABLE_DEV_AUTH;
+
+    const env = getPublicEnv();
+    expect(env.enableDevAuth).toBe(false);
+  });
 });

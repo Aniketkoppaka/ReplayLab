@@ -40,4 +40,23 @@ describe('api baseline smoke test', () => {
     expect(res.body.checks.api).toBe('ok');
     expect(res.body.checks.database).toBe('in_memory');
   });
+
+  it('serves 503 degraded readiness probe when database is unreachable', async () => {
+    const prevDbUrl = process.env.DATABASE_URL;
+    try {
+      // Point to an invalid unreachable PostgreSQL port
+      process.env.DATABASE_URL = 'postgresql://invalid_user:invalid_pass@127.0.0.1:54329/invalid_db?schema=public';
+      const app = createApp();
+      const res = await request(app).get('/ready');
+      expect(res.status).toBe(503);
+      expect(res.body.status).toBe('degraded');
+      expect(res.body.checks.database).toBe('unreachable');
+    } finally {
+      if (prevDbUrl) {
+        process.env.DATABASE_URL = prevDbUrl;
+      } else {
+        delete process.env.DATABASE_URL;
+      }
+    }
+  });
 });
