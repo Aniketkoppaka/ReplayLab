@@ -231,3 +231,24 @@
      - Verified `getPublicEnv()` strictly enforces `enableDevAuth: false` in production mode.
   4. **Stage 5 (Release Classification)**:
      - Release Classification: **`staging verified` / `production candidate`** (pending live cloud environment credential configuration by operator).
+
+## Phase 8: Live Staging Deployment Assessment (Completed)
+- **Starting Commit**: `a0dee02`
+- **Reconciliation & Tooling Commit**: `b13cbd9`
+- **Key Findings**:
+  1. **Test Count Reconciliation**:
+     - Monorepo package breakdown:
+       - `apps/api`: **135 passed**, **22 skipped** (live PostgreSQL integration tests require live DB connection), **157 total**.
+       - `apps/web`: **35 passed**, **0 skipped**, **35 total**.
+       - `packages/contracts`: **15 passed**, **0 skipped**, **15 total**.
+       - `packages/db`: **7 passed**, **0 skipped**, **7 total**.
+     - **Exact Sum**: **192 passed**, **22 skipped**, **214 total**.
+     - End-to-End Suite: 7 of 7 Playwright tests passed cleanly (with exact locator match in `full-journey.spec.ts`).
+  2. **Deployment Infrastructure & Remote Audit**:
+     - Git Remote: Empty (`git remote -v` returns no configured remote).
+     - Cloud CLIs: `docker` binary located; no cloud CLI tooling (`vercel`, `flyctl`, `heroku`, `aws`, `gcloud`, `az`, `supabase`, `gh`) available in PATH.
+     - Cloud Credentials: No deployment credentials or tokens present in environment variables.
+     - Deployment Status: **`deployment blocked`** (awaiting Git remote origin and staging hosting platform credentials from operator).
+  3. **Preparatory Artifacts Delivered**:
+     - Automated staging smoke test runner (`scripts/staging-smoke.mjs` and `npm run test:staging-smoke`).
+     - Staging runbook and acceptance verification matrix in `docs/deployment/staging-verification.md`.
