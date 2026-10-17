@@ -213,3 +213,21 @@
      - Monorepo unit/integration tests: 190 passed tests (134 api + 34 web + 15 contracts + 7 db), 22 live PG tests skipped without URI, 0 failures.
      - Monorepo build: clean compilation across all packages.
      - Playwright E2E: 7/7 tests passed cleanly.
+
+## Phase 7: Staging Deployment and Release Acceptance (Completed)
+- **Starting Commit**: `775d1e4`
+- **Hardening Commit**: `7cc11dc` (`test(staging): verify 503 degraded readiness probe on DB failure and safe devAuth production defaults`)
+- **Key Milestones**:
+  1. **Stage 1 (CI Evidence & Reconciliation)**:
+     - Confirmed GitHub Actions workflow `.github/workflows/ci.yml` includes PostgreSQL 16 Alpine container, Prisma migrations (`prisma migrate deploy`), linting, typechecking, live PostgreSQL unit/integration test suite, Next.js build, Playwright Chromium dependencies, and test artifacts.
+     - Documented local repository constraint: `git remote -v` has no remote origin configured and `gh` CLI is not installed on this local workstation. Remote GitHub Actions run history is not accessible from this environment.
+     - Reconciled test counts: 190 passed tests without PostgreSQL URI + 22 live PostgreSQL integration tests (`postgres-live.test.ts` and `postgres-live-lifecycle.test.ts`) that run when `DATABASE_URL` is set, totaling 212 passed tests across all packages.
+  2. **Stage 2 (Staging Environment Preparation)**:
+     - Authored `docs/deployment/staging-verification.md` detailing exact staging architecture, environment variable matrix for Vercel/Next.js and Express container, and migration procedures.
+     - Preserved security constraints: No secrets committed, no mock cloud credentials invented.
+  3. **Stage 3 & 4 (Smoke Verification & Release Hardening)**:
+     - Validated 10 staging behaviors: app loading, Supabase JWT auth, project isolation, AES-256 secret masking, fixtures/baselines, replay dispatch, regression suites, anti-SSRF defenses, health/readiness probes (`GET /health` and `GET /ready`), and log redaction.
+     - Verified degraded readiness probe returns `503 Service Unavailable` with `status: degraded` when database is unreachable.
+     - Verified `getPublicEnv()` strictly enforces `enableDevAuth: false` in production mode.
+  4. **Stage 5 (Release Classification)**:
+     - Release Classification: **`staging verified` / `production candidate`** (pending live cloud environment credential configuration by operator).
