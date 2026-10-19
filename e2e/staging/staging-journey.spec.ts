@@ -89,14 +89,12 @@ test.describe('Staging Live User Journey & Deterministic Replay Verification', (
 
   test('01. Authenticated Access to Projects Page', async () => {
     await page.goto('/projects');
-    await page.waitForLoadState('networkidle');
 
-    await expect(page.getByRole('heading', { name: /Projects & Workspaces/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Projects & Workspaces/i })).toBeVisible({ timeout: 15000 });
   });
 
   test('02. Project Creation & Selection', async () => {
     await page.goto('/projects');
-    await page.waitForLoadState('networkidle');
 
     // Open creation modal
     await page.getByRole('button', { name: /New Project/i }).click();
@@ -147,8 +145,7 @@ test.describe('Staging Live User Journey & Deterministic Replay Verification', (
 
   test('03. Environment Configuration with HTTPBin Target', async () => {
     await page.goto('/environments');
-    await page.waitForLoadState('networkidle');
-    await expect(page.getByRole('heading', { name: 'Target Environments' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Target Environments' })).toBeVisible({ timeout: 15000 });
 
     // Open modal
     await page.getByRole('button', { name: /New Environment|Add Environment/i }).first().click();
@@ -165,19 +162,30 @@ test.describe('Staging Live User Journey & Deterministic Replay Verification', (
 
   test('04. Fixture Creation & Phase 11.1 Baseline Configuration (bodyType: NONE)', async () => {
     await page.goto('/fixtures');
-    await page.waitForLoadState('networkidle');
-    await expect(page.getByRole('heading', { name: 'Sanitized Fixtures' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Sanitized Fixtures' })).toBeVisible({ timeout: 15000 });
 
     // Open New Fixture modal
     await page.getByRole('button', { name: /New Fixture|Create Fixture/i }).first().click();
 
-    await page.locator('input[placeholder="e.g. Get User Profile"]').fill('Get Status 200 Fixture');
-    await page.locator('input[placeholder="/api/v1/resource"]').fill('/status/200');
+    const fixtureModal = page.locator('div.fixed', {
+      has: page.getByRole('heading', { name: /Create Fixture/i }),
+    });
+    await expect(fixtureModal).toBeVisible();
 
-    // Submit fixture creation
-    const createBtn = page.locator('form').getByRole('button', { name: /Create Fixture|Save Changes/i });
-    await createBtn.scrollIntoViewIfNeeded();
-    await createBtn.click();
+    await fixtureModal.locator('input[placeholder="e.g. Get User Profile"]').fill('Get Status 200 Fixture');
+    await fixtureModal.locator('input[placeholder="/api/v1/resource"]').fill('/status/200');
+
+    // Submit fixture creation and wait for the API response
+    const [createResponse] = await Promise.all([
+      page.waitForResponse(
+        (res) =>
+          res.url().includes('/fixtures') &&
+          res.request().method() === 'POST' &&
+          res.status() === 201
+      ),
+      fixtureModal.getByRole('button', { name: /Create Fixture/i }).click(),
+    ]);
+    expect(createResponse.ok()).toBeTruthy();
 
     // Verify fixture listed
     await expect(page.getByText('Get Status 200 Fixture')).toBeVisible({ timeout: 10000 });
@@ -202,24 +210,28 @@ test.describe('Staging Live User Journey & Deterministic Replay Verification', (
 
   test('05. Live Replay Execution & Phase 11.1 PASS Outcome Assertion', async () => {
     await page.goto('/fixtures');
-    await page.waitForLoadState('networkidle');
 
     // Trigger replay modal for fixture
     await page.getByRole('button', { name: /Replay/i }).first().click();
-    await expect(page.getByText('Interactive Fixture Replay')).toBeVisible();
+    
+    // Locate the replay modal container via its heading
+    const replayModal = page.locator('div.fixed', {
+      has: page.getByRole('heading', { name: 'Interactive Fixture Replay' }),
+    });
+    await expect(replayModal).toBeVisible();
 
     // Dispatch Replay against live HTTPBin
-    await page.getByRole('button', { name: /Trigger Replay/i }).click();
+    await replayModal.getByRole('button', { name: /Trigger Replay/i }).click();
 
-    // Verify live execution outcome returns SUCCESS with HTTP 200
+    // Verify live execution outcome returns SUCCESS with HTTP 200 scoped to the execution results panel
     // (This definitively proves the Phase 11.1 fix: bodyType NONE asserts HTTP 200 without diffing empty body)
-    await expect(page.locator('span', { hasText: 'SUCCESS' })).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText('HTTP 200')).toBeVisible({ timeout: 15000 });
+    const resultPanel = replayModal.locator('div.pt-4.border-t.border-slate-800');
+    await expect(resultPanel.locator('span', { hasText: 'SUCCESS' })).toBeVisible({ timeout: 15000 });
+    await expect(resultPanel.locator('span.font-mono', { hasText: 'HTTP 200' })).toBeVisible({ timeout: 15000 });
   });
 
   test('06. Negative Baseline Status Assertion Verification', async () => {
     await page.goto('/fixtures');
-    await page.waitForLoadState('networkidle');
 
     // Update baseline to expect HTTP 404 with bodyType NONE
     const baselineBtn = page.getByRole('button', { name: /Baseline/i }).first();
@@ -227,7 +239,9 @@ test.describe('Staging Live User Journey & Deterministic Replay Verification', (
     await baselineBtn.click();
     await expect(page.getByText('Explicit Baseline Snapshot Update')).toBeVisible();
 
-    const baselineModal = page.getByRole('main').locator('div.fixed');
+    const baselineModal = page.locator('div.fixed', {
+      has: page.getByRole('heading', { name: 'Explicit Baseline Snapshot Update' }),
+    });
     await baselineModal.locator('input[type="number"]').fill('404');
     await baselineModal.locator('select').selectOption('NONE');
 
@@ -239,12 +253,17 @@ test.describe('Staging Live User Journey & Deterministic Replay Verification', (
 
     // Trigger replay again
     await page.getByRole('button', { name: /Replay/i }).first().click();
-    await expect(page.getByText('Interactive Fixture Replay')).toBeVisible();
+    
+    const replayModal = page.locator('div.fixed', {
+      has: page.getByRole('heading', { name: 'Interactive Fixture Replay' }),
+    });
+    await expect(replayModal).toBeVisible();
 
-    await page.getByRole('button', { name: /Trigger Replay/i }).click();
+    await replayModal.getByRole('button', { name: /Trigger Replay/i }).click();
 
-    // Expect ASSERTION_FAILURE because target returns 200 but baseline expects 404
-    await expect(page.locator('span', { hasText: 'ASSERTION_FAILURE' })).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText('HTTP 200')).toBeVisible({ timeout: 15000 });
+    // Expect ASSERTION_FAILURE because target returns 200 but baseline expects 404 scoped to result panel
+    const resultPanel = replayModal.locator('div.pt-4.border-t.border-slate-800');
+    await expect(resultPanel.locator('span', { hasText: 'ASSERTION_FAILURE' })).toBeVisible({ timeout: 15000 });
+    await expect(resultPanel.locator('span.font-mono', { hasText: 'HTTP 200' })).toBeVisible({ timeout: 15000 });
   });
 });
