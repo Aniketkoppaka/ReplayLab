@@ -259,7 +259,7 @@ export default function EnvironmentsPage() {
                 <Server className="h-6 w-6 text-emerald-400" />
                 Target Environments
               </h1>
-              <p className="mt-1 text-sm text-slate-400">
+              <p className="mt-1 text-sm text-[#9aa2b1]">
                 Safe egress endpoints with anti-SSRF protections, private IP filters, and AES-256 envelope encryption
               </p>
             </div>
@@ -277,10 +277,10 @@ export default function EnvironmentsPage() {
           </div>
 
           {!activeProject ? (
-            <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-12 text-center">
+            <div className="rounded border border-[#222630] bg-[#13161c] p-12 text-center">
               <Server className="h-10 w-10 text-slate-600 mx-auto mb-3" />
               <h3 className="text-base font-semibold text-white">No active project selected</h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+              <p className="text-xs text-[#9aa2b1] mt-1 max-w-sm mx-auto">
                 Please create or select a project from the top workspace menu to manage target environments.
               </p>
             </div>
@@ -289,7 +289,7 @@ export default function EnvironmentsPage() {
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent" />
             </div>
           ) : error ? (
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6 text-amber-300">
+            <div className="rounded border border-amber-500/30 bg-amber-500/10 p-6 text-amber-300">
               <div className="flex items-center gap-2 font-medium text-sm">
                 <AlertCircle className="h-4 w-4" />
                 Environment Notice
@@ -297,10 +297,10 @@ export default function EnvironmentsPage() {
               <p className="mt-2 text-xs text-amber-200/80 leading-relaxed">{error}</p>
             </div>
           ) : environments.length === 0 ? (
-            <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-12 text-center">
+            <div className="rounded border border-[#222630] bg-[#13161c] p-12 text-center">
               <Server className="h-10 w-10 text-slate-600 mx-auto mb-3" />
               <h3 className="text-base font-semibold text-white">No environments configured</h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto mb-5">
+              <p className="text-xs text-[#9aa2b1] mt-1 max-w-sm mx-auto mb-5">
                 Define a target host (e.g. Staging, Preview, Local API Mock) to replay sanitized fixtures.
               </p>
               <button
@@ -322,7 +322,7 @@ export default function EnvironmentsPage() {
                 return (
                   <div
                     key={env.id}
-                    className="rounded-xl border border-slate-800 bg-slate-900/50 p-6 flex flex-col justify-between hover:border-slate-700 transition"
+                    className="rounded border border-[#222630] bg-[#13161c] p-6 flex flex-col justify-between hover:border-[#2d3340] transition"
                   >
                     <div>
                       <div className="flex items-start justify-between gap-3 mb-2">
@@ -341,7 +341,7 @@ export default function EnvironmentsPage() {
                             type="button"
                             title="Edit Environment"
                             onClick={() => openEditModal(env)}
-                            className="p-1.5 text-slate-400 hover:text-white transition rounded-md hover:bg-slate-800"
+                            className="p-1.5 text-[#9aa2b1] hover:text-white transition rounded-md hover:bg-[#181b22]"
                           >
                             <Edit2 className="h-4 w-4" />
                           </button>
@@ -349,7 +349,7 @@ export default function EnvironmentsPage() {
                             type="button"
                             title="Delete Environment"
                             onClick={() => setDeleteConfirmId(env.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-400 transition rounded-md hover:bg-slate-800"
+                            className="p-1.5 text-[#9aa2b1] hover:text-rose-400 transition rounded-md hover:bg-[#181b22]"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -358,7 +358,7 @@ export default function EnvironmentsPage() {
 
                       {/* Config summary badges */}
                       <div className="mt-4 flex flex-wrap gap-2 text-[11px]">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#181b22] text-[#9aa2b1] border border-[#2d3340]">
                           <ShieldCheck className="h-3 w-3 text-emerald-400" />
                           {headerCount} Custom Headers
                         </span>
@@ -369,8 +369,8 @@ export default function EnvironmentsPage() {
                           </span>
                         )}
                         {plaintextCount > 0 && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
-                            <Key className="h-3 w-3 text-slate-400" />
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#181b22] text-[#9aa2b1] border border-[#2d3340]">
+                            <Key className="h-3 w-3 text-[#9aa2b1]" />
                             {plaintextCount} Variables
                           </span>
                         )}
@@ -378,26 +378,26 @@ export default function EnvironmentsPage() {
 
                       {/* Variable breakdown */}
                       {(env.variables || []).length > 0 && (
-                        <div className="mt-4 space-y-1.5 pt-3 border-t border-slate-800">
-                          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                        <div className="mt-4 space-y-1.5 pt-3 border-t border-[#222630]">
+                          <div className="text-[10px] font-semibold uppercase tracking-wider text-[#6b7280]">
                             Environment Variables
                           </div>
                           <div className="flex flex-wrap gap-1.5">
                             {env.variables.map((v) => (
                               <span
                                 key={v.key}
-                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-800/80 border border-slate-700/60 text-[11px] font-mono text-slate-300"
+                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#181b22] border border-[#2d3340] text-[11px] font-mono text-[#9aa2b1]"
                               >
                                 {v.isSecret ? (
                                   <>
                                     <Lock className="h-2.5 w-2.5 text-amber-400" />
                                     <span>{v.key}</span>
-                                    <span className="text-slate-500 text-[10px]">[ENCRYPTED]</span>
+                                    <span className="text-[#6b7280] text-[10px]">[ENCRYPTED]</span>
                                   </>
                                 ) : (
                                   <>
-                                    <span className="text-slate-400">{v.key}:</span>
-                                    <span className="text-slate-200">{v.value}</span>
+                                    <span className="text-[#9aa2b1]">{v.key}:</span>
+                                    <span className="text-[#f0f2f5]">{v.value}</span>
                                   </>
                                 )}
                               </span>
@@ -407,7 +407,7 @@ export default function EnvironmentsPage() {
                       )}
                     </div>
 
-                    <div className="mt-6 pt-3 border-t border-slate-800 text-[11px] text-slate-500 font-mono">
+                    <div className="mt-6 pt-3 border-t border-[#222630] text-[11px] text-[#6b7280] font-mono">
                       ID: {env.id}
                     </div>
                   </div>
@@ -419,11 +419,11 @@ export default function EnvironmentsPage() {
           {/* Create / Edit Environment Modal */}
           {modalMode && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-              <div className="w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl my-8">
+              <div className="w-full max-w-2xl rounded border border-[#222630] bg-[#13161c] p-6 shadow-2xl my-8">
                 <h3 className="text-lg font-semibold text-white">
                   {modalMode === 'create' ? 'Create Environment' : 'Edit Environment'}
                 </h3>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-[#9aa2b1]">
                   Target URLs must adhere to anti-SSRF protections: loopback addresses and private subnets are blocked.
                 </p>
 
@@ -437,7 +437,7 @@ export default function EnvironmentsPage() {
                 <form onSubmit={handleSaveEnvironment} className="mt-5 space-y-5">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                      <label className="block text-xs font-medium text-[#9aa2b1] mb-1.5">
                         Environment Name *
                       </label>
                       <input
@@ -446,12 +446,12 @@ export default function EnvironmentsPage() {
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="e.g. Staging Server"
-                        className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        className="w-full rounded-lg border border-[#2d3340] bg-[#181b22] px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                      <label className="block text-xs font-medium text-[#9aa2b1] mb-1.5">
                         Base URL (HTTP/HTTPS) *
                       </label>
                       <input
@@ -460,7 +460,7 @@ export default function EnvironmentsPage() {
                         value={baseUrl}
                         onChange={(e) => setBaseUrl(e.target.value)}
                         placeholder="https://api.example.com"
-                        className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        className="w-full rounded-lg border border-[#2d3340] bg-[#181b22] px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                       />
                     </div>
                   </div>
@@ -468,7 +468,7 @@ export default function EnvironmentsPage() {
                   {/* Headers Section */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs font-medium text-slate-300">
+                      <label className="text-xs font-medium text-[#9aa2b1]">
                         Default Request Headers
                       </label>
                       <button
@@ -482,7 +482,7 @@ export default function EnvironmentsPage() {
                     </div>
 
                     {headerEntries.length === 0 ? (
-                      <p className="text-xs text-slate-500 italic">No custom headers configured.</p>
+                      <p className="text-xs text-[#6b7280] italic">No custom headers configured.</p>
                     ) : (
                       <div className="space-y-2">
                         {headerEntries.map((h, idx) => (
@@ -497,7 +497,7 @@ export default function EnvironmentsPage() {
                                   prev.map((item, i) => (i === idx ? { ...item, key: val } : item))
                                 );
                               }}
-                              className="flex-1 rounded-md border border-slate-700 bg-slate-800/60 px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+                              className="flex-1 rounded-md border border-[#2d3340] bg-[#181b22] px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
                             />
                             <input
                               type="text"
@@ -509,12 +509,12 @@ export default function EnvironmentsPage() {
                                   prev.map((item, i) => (i === idx ? { ...item, value: val } : item))
                                 );
                               }}
-                              className="flex-1 rounded-md border border-slate-700 bg-slate-800/60 px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+                              className="flex-1 rounded-md border border-[#2d3340] bg-[#181b22] px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
                             />
                             <button
                               type="button"
                               onClick={() => handleRemoveHeader(idx)}
-                              className="text-slate-500 hover:text-rose-400 p-1.5"
+                              className="text-[#6b7280] hover:text-rose-400 p-1.5"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -528,10 +528,10 @@ export default function EnvironmentsPage() {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <div>
-                        <label className="text-xs font-medium text-slate-300">
+                        <label className="text-xs font-medium text-[#9aa2b1]">
                           Environment Variables & Secrets
                         </label>
-                        <span className="block text-[11px] text-slate-500">
+                        <span className="block text-[11px] text-[#6b7280]">
                           Secrets are AES-256-GCM encrypted and never returned in plaintext.
                         </span>
                       </div>
@@ -546,13 +546,13 @@ export default function EnvironmentsPage() {
                     </div>
 
                     {variables.length === 0 ? (
-                      <p className="text-xs text-slate-500 italic">No variables defined.</p>
+                      <p className="text-xs text-[#6b7280] italic">No variables defined.</p>
                     ) : (
                       <div className="space-y-3">
                         {variables.map((v, idx) => (
                           <div
                             key={idx}
-                            className="p-3 rounded-lg border border-slate-800 bg-slate-800/40 space-y-2"
+                            className="p-3 rounded-lg border border-[#222630] bg-[#181b22] space-y-2"
                           >
                             <div className="flex items-center gap-3">
                               <input
@@ -565,12 +565,12 @@ export default function EnvironmentsPage() {
                                     prev.map((item, i) => (i === idx ? { ...item, key: val } : item))
                                   );
                                 }}
-                                className="w-1/3 rounded-md border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-xs font-mono text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+                                className="w-1/3 rounded-md border border-[#2d3340] bg-[#181b22] px-2.5 py-1.5 text-xs font-mono text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
                               />
 
                               <div className="flex-1">
                                 {v.isSecret && v.isExistingSecret && !v.replaceSecret ? (
-                                  <div className="flex items-center justify-between px-3 py-1.5 rounded-md bg-slate-900 border border-slate-700 text-xs text-amber-400">
+                                  <div className="flex items-center justify-between px-3 py-1.5 rounded-md bg-[#13161c] border border-[#2d3340] text-xs text-amber-400">
                                     <span className="flex items-center gap-1.5 font-mono text-[11px]">
                                       <Lock className="h-3 w-3" />
                                       •••••••• [Encrypted Secret Retained]
@@ -600,7 +600,7 @@ export default function EnvironmentsPage() {
                                         prev.map((item, i) => (i === idx ? { ...item, value: val } : item))
                                       );
                                     }}
-                                    className="w-full rounded-md border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+                                    className="w-full rounded-md border border-[#2d3340] bg-[#181b22] px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
                                   />
                                 )}
                               </div>
@@ -608,13 +608,13 @@ export default function EnvironmentsPage() {
                               <button
                                 type="button"
                                 onClick={() => handleRemoveVariable(idx)}
-                                className="text-slate-500 hover:text-rose-400 p-1.5"
+                                className="text-[#6b7280] hover:text-rose-400 p-1.5"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
                             </div>
 
-                            <div className="flex items-center gap-4 text-xs text-slate-400">
+                            <div className="flex items-center gap-4 text-xs text-[#9aa2b1]">
                               <label className="flex items-center gap-2 cursor-pointer">
                                 <input
                                   type="checkbox"
@@ -634,7 +634,7 @@ export default function EnvironmentsPage() {
                                       )
                                     );
                                   }}
-                                  className="rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0"
+                                  className="rounded border-[#2d3340] bg-[#181b22] text-indigo-600 focus:ring-0"
                                 />
                                 <span className="text-[11px]">Mark as Secret (Encrypted at Rest)</span>
                               </label>
@@ -651,7 +651,7 @@ export default function EnvironmentsPage() {
                                       )
                                     );
                                   }}
-                                  className="text-[10px] text-slate-400 hover:underline"
+                                  className="text-[10px] text-[#9aa2b1] hover:underline"
                                 >
                                   Cancel Replacement
                                 </button>
@@ -663,11 +663,11 @@ export default function EnvironmentsPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#222630]">
                     <button
                       type="button"
                       onClick={() => setModalMode(null)}
-                      className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+                      className="rounded-lg px-3 py-2 text-xs font-semibold text-[#9aa2b1] hover:text-white transition"
                     >
                       Cancel
                     </button>
@@ -692,19 +692,19 @@ export default function EnvironmentsPage() {
           {/* Delete Confirmation Modal */}
           {deleteConfirmId && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="w-full max-w-sm rounded-2xl border border-rose-500/20 bg-slate-900 p-6 shadow-2xl">
+              <div className="w-full max-w-sm rounded border border-rose-500/20 bg-[#13161c] p-6 shadow-2xl">
                 <div className="flex items-center gap-3 text-rose-400 mb-3">
                   <AlertCircle className="h-6 w-6 shrink-0" />
                   <h3 className="text-base font-semibold text-white">Delete Environment</h3>
                 </div>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <p className="text-xs text-[#9aa2b1] leading-relaxed">
                   Are you sure you want to delete this target environment? Any test suites referencing it will fail to dispatch until reassigned.
                 </p>
                 <div className="mt-6 flex items-center justify-end gap-3">
                   <button
                     type="button"
                     onClick={() => setDeleteConfirmId(null)}
-                    className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-white transition"
+                    className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#9aa2b1] hover:text-white transition"
                   >
                     Cancel
                   </button>

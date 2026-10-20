@@ -342,7 +342,7 @@ export default function FixturesPage() {
                 <FileCode2 className="h-6 w-6 text-amber-400" />
                 Sanitized Fixtures
               </h1>
-              <p className="mt-1 text-sm text-slate-400">
+              <p className="mt-1 text-sm text-[#9aa2b1]">
                 Deterministic HTTP traffic snapshots with secret redaction and immutable baselines
               </p>
             </div>
@@ -360,10 +360,10 @@ export default function FixturesPage() {
           </div>
 
           {!activeProject ? (
-            <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-12 text-center">
+            <div className="rounded border border-[#222630] bg-[#13161c]/40 p-12 text-center">
               <FileCode2 className="h-10 w-10 text-slate-600 mx-auto mb-3" />
               <h3 className="text-base font-semibold text-white">No active project selected</h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+              <p className="text-xs text-[#9aa2b1] mt-1 max-w-sm mx-auto">
                 Please create or select a project from the top workspace menu to manage fixtures.
               </p>
             </div>
@@ -372,7 +372,7 @@ export default function FixturesPage() {
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
             </div>
           ) : error ? (
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6 text-amber-300">
+            <div className="rounded border border-amber-500/30 bg-amber-500/10 p-6 text-amber-300">
               <div className="flex items-center gap-2 font-medium text-sm">
                 <AlertCircle className="h-4 w-4" />
                 Fixture Notice
@@ -380,10 +380,10 @@ export default function FixturesPage() {
               <p className="mt-2 text-xs text-amber-200/80 leading-relaxed">{error}</p>
             </div>
           ) : fixtures.length === 0 ? (
-            <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-12 text-center">
+            <div className="rounded border border-[#222630] bg-[#13161c]/40 p-12 text-center">
               <FileCode2 className="h-10 w-10 text-slate-600 mx-auto mb-3" />
               <h3 className="text-base font-semibold text-white">No fixtures found</h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto mb-5">
+              <p className="text-xs text-[#9aa2b1] mt-1 max-w-sm mx-auto mb-5">
                 Create a fixture with HTTP method, relative path, and expected baseline to start regression testing.
               </p>
               <button
@@ -412,7 +412,7 @@ export default function FixturesPage() {
                 return (
                   <div
                     key={fixture.id}
-                    className="rounded-xl border border-slate-800 bg-slate-900/50 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-slate-700 transition"
+                    className="rounded border border-[#222630] bg-[#13161c]/50 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-[#2d3340] transition"
                   >
                     <div className="space-y-2 max-w-2xl">
                       <div className="flex items-center gap-3">
@@ -430,21 +430,21 @@ export default function FixturesPage() {
                             Baseline Set (HTTP {fixture.baseline.statusCode})
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#6b7280] bg-[#181b22] px-2 py-0.5 rounded-full border border-[#2d3340]">
                             No Baseline
                           </span>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2 text-xs font-mono text-slate-300">
-                        <span className="text-slate-500">Path:</span>
-                        <span className="bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700">
+                      <div className="flex items-center gap-2 text-xs font-mono text-[#9aa2b1]">
+                        <span className="text-[#6b7280]">Path:</span>
+                        <span className="bg-[#181b22]/80 px-2 py-0.5 rounded border border-[#2d3340]">
                           {fixture.request.path}
                         </span>
                       </div>
 
                       {fixture.description && (
-                        <p className="text-xs text-slate-400 line-clamp-1">{fixture.description}</p>
+                        <p className="text-xs text-[#9aa2b1] line-clamp-1">{fixture.description}</p>
                       )}
 
                       {fixture.tags && fixture.tags.length > 0 && (
@@ -452,7 +452,7 @@ export default function FixturesPage() {
                           {fixture.tags.map((t) => (
                             <span
                               key={t}
-                              className="text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded"
+                              className="text-[10px] text-[#9aa2b1] bg-[#181b22] px-2 py-0.5 rounded"
                             >
                               #{t}
                             </span>
@@ -461,11 +461,11 @@ export default function FixturesPage() {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-slate-800">
+                    <div className="flex items-center gap-2 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-[#222630]">
                       <button
                         type="button"
                         onClick={() => setReplayModalFixture(fixture)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 shadow shadow-indigo-600/20 transition"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 text-[#0e1015]  shadow shadow-indigo-600/20 transition"
                       >
                         <Play className="h-3 w-3 fill-current" />
                         Replay
@@ -483,7 +483,7 @@ export default function FixturesPage() {
                       <button
                         type="button"
                         onClick={() => openEditModal(fixture)}
-                        className="p-1.5 text-slate-400 hover:text-white transition rounded-md hover:bg-slate-800"
+                        className="p-1.5 text-[#9aa2b1] hover:text-white transition rounded-md hover:bg-[#181b22]"
                         title="Edit Fixture"
                       >
                         <Edit2 className="h-4 w-4" />
@@ -492,7 +492,7 @@ export default function FixturesPage() {
                       <button
                         type="button"
                         onClick={() => setDeleteConfirmId(fixture.id)}
-                        className="p-1.5 text-slate-400 hover:text-rose-400 transition rounded-md hover:bg-slate-800"
+                        className="p-1.5 text-[#9aa2b1] hover:text-rose-400 transition rounded-md hover:bg-[#181b22]"
                         title="Delete Fixture"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -507,11 +507,11 @@ export default function FixturesPage() {
           {/* Create / Edit Fixture Modal */}
           {modalMode && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-              <div className="w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl my-8">
+              <div className="w-full max-w-2xl rounded border border-[#222630] bg-[#13161c] p-6 shadow-2xl my-8">
                 <h3 className="text-lg font-semibold text-white">
                   {modalMode === 'create' ? 'Create Fixture' : 'Edit Fixture'}
                 </h3>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-[#9aa2b1]">
                   Fixtures represent test HTTP requests. Sensitive tokens like authorization headers are automatically redacted.
                 </p>
 
@@ -525,7 +525,7 @@ export default function FixturesPage() {
                 <form onSubmit={handleSaveFixture} className="mt-5 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                      <label className="block text-xs font-medium text-[#9aa2b1] mb-1.5">
                         Fixture Name *
                       </label>
                       <input
@@ -534,12 +534,12 @@ export default function FixturesPage() {
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="e.g. Get User Profile"
-                        className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        className="w-full rounded-lg border border-[#2d3340] bg-[#181b22] px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                      <label className="block text-xs font-medium text-[#9aa2b1] mb-1.5">
                         Tags (comma-separated)
                       </label>
                       <input
@@ -547,13 +547,13 @@ export default function FixturesPage() {
                         value={tagsString}
                         onChange={(e) => setTagsString(e.target.value)}
                         placeholder="e.g. auth, users, smoke"
-                        className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        className="w-full rounded-lg border border-[#2d3340] bg-[#181b22] px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                    <label className="block text-xs font-medium text-[#9aa2b1] mb-1.5">
                       Description (Optional)
                     </label>
                     <input
@@ -561,20 +561,20 @@ export default function FixturesPage() {
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="e.g. Validates 200 OK profile payload"
-                      className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      className="w-full rounded-lg border border-[#2d3340] bg-[#181b22] px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
                     />
                   </div>
 
                   {/* HTTP Method and Path */}
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                     <div className="sm:col-span-1">
-                      <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                      <label className="block text-xs font-medium text-[#9aa2b1] mb-1.5">
                         HTTP Method
                       </label>
                       <select
                         value={method}
                         onChange={(e) => setMethod(e.target.value as HttpMethod)}
-                        className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm font-semibold text-white focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        className="w-full rounded-lg border border-[#2d3340] bg-[#181b22] px-3 py-2 text-sm font-semibold text-white focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
                       >
                         {HTTP_METHODS.map((m) => (
                           <option key={m} value={m}>
@@ -585,7 +585,7 @@ export default function FixturesPage() {
                     </div>
 
                     <div className="sm:col-span-3">
-                      <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                      <label className="block text-xs font-medium text-[#9aa2b1] mb-1.5">
                         Relative Path *
                       </label>
                       <input
@@ -594,7 +594,7 @@ export default function FixturesPage() {
                         value={path}
                         onChange={(e) => setPath(e.target.value)}
                         placeholder="/api/v1/resource"
-                        className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm font-mono text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        className="w-full rounded-lg border border-[#2d3340] bg-[#181b22] px-3 py-2 text-sm font-mono text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
                       />
                     </div>
                   </div>
@@ -602,7 +602,7 @@ export default function FixturesPage() {
                   {/* Request Headers */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs font-medium text-slate-300">
+                      <label className="text-xs font-medium text-[#9aa2b1]">
                         Request Headers
                       </label>
                       <button
@@ -616,7 +616,7 @@ export default function FixturesPage() {
                     </div>
 
                     {headerEntries.length === 0 ? (
-                      <p className="text-xs text-slate-500 italic">No request headers defined.</p>
+                      <p className="text-xs text-[#6b7280] italic">No request headers defined.</p>
                     ) : (
                       <div className="space-y-2">
                         {headerEntries.map((h, idx) => (
@@ -631,7 +631,7 @@ export default function FixturesPage() {
                                   prev.map((item, i) => (i === idx ? { ...item, key: val } : item))
                                 );
                               }}
-                              className="flex-1 rounded-md border border-slate-700 bg-slate-800/60 px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none"
+                              className="flex-1 rounded-md border border-[#2d3340] bg-[#181b22] px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none"
                             />
                             <input
                               type="text"
@@ -643,12 +643,12 @@ export default function FixturesPage() {
                                   prev.map((item, i) => (i === idx ? { ...item, value: val } : item))
                                 );
                               }}
-                              className="flex-1 rounded-md border border-slate-700 bg-slate-800/60 px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none"
+                              className="flex-1 rounded-md border border-[#2d3340] bg-[#181b22] px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none"
                             />
                             <button
                               type="button"
                               onClick={() => handleRemoveHeader(idx)}
-                              className="text-slate-500 hover:text-rose-400 p-1.5"
+                              className="text-[#6b7280] hover:text-rose-400 p-1.5"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -661,7 +661,7 @@ export default function FixturesPage() {
                   {/* Body Type and Body Editor */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs font-medium text-slate-300">
+                      <label className="text-xs font-medium text-[#9aa2b1]">
                         Request Body
                       </label>
                       <div className="flex gap-2">
@@ -673,7 +673,7 @@ export default function FixturesPage() {
                             className={`px-2.5 py-0.5 rounded text-xs font-semibold transition ${
                               bodyType === bt
                                 ? 'bg-amber-600 text-white'
-                                : 'bg-slate-800 text-slate-400 hover:text-white'
+                                : 'bg-[#181b22] text-[#9aa2b1] hover:text-white'
                             }`}
                           >
                             {bt}
@@ -688,16 +688,16 @@ export default function FixturesPage() {
                         value={bodyString}
                         onChange={(e) => setBodyString(e.target.value)}
                         placeholder={bodyType === 'JSON' ? '{\n  "key": "value"\n}' : 'Plaintext body...'}
-                        className="w-full font-mono text-xs rounded-lg border border-slate-700 bg-slate-800/80 p-3 text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        className="w-full font-mono text-xs rounded-lg border border-[#2d3340] bg-[#181b22]/80 p-3 text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
                       />
                     )}
                   </div>
 
-                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#222630]">
                     <button
                       type="button"
                       onClick={() => setModalMode(null)}
-                      className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+                      className="rounded-lg px-3 py-2 text-xs font-semibold text-[#9aa2b1] hover:text-white transition"
                     >
                       Cancel
                     </button>
@@ -722,14 +722,14 @@ export default function FixturesPage() {
           {/* Explicit Baseline Update Confirmation Modal */}
           {baselineModalFixture && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-              <div className="w-full max-w-xl rounded-2xl border border-amber-500/30 bg-slate-900 p-6 shadow-2xl my-8">
+              <div className="w-full max-w-xl rounded border border-amber-500/30 bg-[#13161c] p-6 shadow-2xl my-8">
                 <div className="flex items-center gap-2.5 text-amber-400 mb-2">
                   <Sparkles className="h-5 w-5" />
                   <h3 className="text-base font-semibold text-white">
                     Explicit Baseline Snapshot Update
                   </h3>
                 </div>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <p className="text-xs text-[#9aa2b1] leading-relaxed">
                   Baselines define expected responses for regression differential comparisons.
                   Updating a baseline is an explicit versioned operation.
                 </p>
@@ -744,7 +744,7 @@ export default function FixturesPage() {
                 <form onSubmit={handleUpdateBaseline} className="mt-4 space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                      <label className="block text-xs font-medium text-[#9aa2b1] mb-1.5">
                         Expected HTTP Status
                       </label>
                       <input
@@ -754,18 +754,18 @@ export default function FixturesPage() {
                         required
                         value={baselineStatusCode}
                         onChange={(e) => setBaselineStatusCode(Number(e.target.value))}
-                        className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm font-mono text-white focus:border-amber-500 focus:outline-none"
+                        className="w-full rounded-lg border border-[#2d3340] bg-[#181b22] px-3 py-2 text-sm font-mono text-white focus:border-amber-500 focus:outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                      <label className="block text-xs font-medium text-[#9aa2b1] mb-1.5">
                         Response Body Type
                       </label>
                       <select
                         value={baselineBodyType}
                         onChange={(e) => setBaselineBodyType(e.target.value as BodyType)}
-                        className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-white focus:border-amber-500 focus:outline-none"
+                        className="w-full rounded-lg border border-[#2d3340] bg-[#181b22] px-3 py-2 text-sm text-white focus:border-amber-500 focus:outline-none"
                       >
                         <option value="NONE">NONE (Empty Body)</option>
                         <option value="JSON">JSON</option>
@@ -776,7 +776,7 @@ export default function FixturesPage() {
 
                   {baselineBodyType !== 'NONE' && (
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                      <label className="block text-xs font-medium text-[#9aa2b1] mb-1.5">
                         Expected Body Snapshot
                       </label>
                       <textarea
@@ -784,7 +784,7 @@ export default function FixturesPage() {
                         value={baselineBodyString}
                         onChange={(e) => setBaselineBodyString(e.target.value)}
                         placeholder="Expected baseline JSON or text..."
-                        className="w-full font-mono text-xs rounded-lg border border-slate-700 bg-slate-800/80 p-3 text-white focus:border-amber-500 focus:outline-none"
+                        className="w-full font-mono text-xs rounded-lg border border-[#2d3340] bg-[#181b22]/80 p-3 text-white focus:border-amber-500 focus:outline-none"
                       />
                     </div>
                   )}
@@ -797,11 +797,11 @@ export default function FixturesPage() {
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#222630]">
                     <button
                       type="button"
                       onClick={() => setBaselineModalFixture(null)}
-                      className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-white transition"
+                      className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#9aa2b1] hover:text-white transition"
                     >
                       Cancel
                     </button>
@@ -822,19 +822,19 @@ export default function FixturesPage() {
           {/* Delete Confirmation Modal */}
           {deleteConfirmId && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="w-full max-w-sm rounded-2xl border border-rose-500/20 bg-slate-900 p-6 shadow-2xl">
+              <div className="w-full max-w-sm rounded border border-rose-500/20 bg-[#13161c] p-6 shadow-2xl">
                 <div className="flex items-center gap-3 text-rose-400 mb-3">
                   <AlertCircle className="h-6 w-6 shrink-0" />
                   <h3 className="text-base font-semibold text-white">Delete Fixture</h3>
                 </div>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <p className="text-xs text-[#9aa2b1] leading-relaxed">
                   Are you sure you want to delete this fixture? All associated baseline history and differential comparisons will be removed.
                 </p>
                 <div className="mt-6 flex items-center justify-end gap-3">
                   <button
                     type="button"
                     onClick={() => setDeleteConfirmId(null)}
-                    className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-white transition"
+                    className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#9aa2b1] hover:text-white transition"
                   >
                     Cancel
                   </button>

@@ -192,7 +192,7 @@ export default function RunsPage() {
       case 'TRANSPORT_ERROR':
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#181b22] text-[#9aa2b1] border border-[#2d3340]">
             <AlertCircle className="h-3 w-3" />
             TRANSPORT_ERROR
           </span>
@@ -214,7 +214,7 @@ export default function RunsPage() {
                 <PlayCircle className="h-6 w-6 text-indigo-400" />
                 Replay Runs History
               </h1>
-              <p className="mt-1 text-sm text-slate-400">
+              <p className="mt-1 text-sm text-[#9aa2b1]">
                 Durable execution history, differential comparison results, and response timings
               </p>
             </div>
@@ -224,7 +224,7 @@ export default function RunsPage() {
               <button
                 type="button"
                 onClick={() => setTriggerModalFixture(fixtures[0] || null)}
-                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-[#0e1015] px-4 py-2 text-sm font-semibold text-white shadow transition  focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
               >
                 <PlayCircle className="h-4 w-4" />
                 Launch Replay
@@ -233,19 +233,19 @@ export default function RunsPage() {
           </div>
 
           {!activeProject ? (
-            <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-12 text-center">
+            <div className="rounded border border-[#222630] bg-[#13161c] p-12 text-center">
               <PlayCircle className="h-10 w-10 text-slate-600 mx-auto mb-3" />
               <h3 className="text-base font-semibold text-white">No active project selected</h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+              <p className="text-xs text-[#9aa2b1] mt-1 max-w-sm mx-auto">
                 Please select a project to view its replay execution history.
               </p>
             </div>
           ) : (
             <>
               {/* Fixture Filter Bar */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-xl border border-slate-800 bg-slate-900/40">
-                <div className="flex items-center gap-2 text-xs text-slate-400">
-                  <Filter className="h-4 w-4 text-slate-500" />
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded border border-[#222630] bg-[#13161c]">
+                <div className="flex items-center gap-2 text-xs text-[#9aa2b1]">
+                  <Filter className="h-4 w-4 text-[#6b7280]" />
                   <span>Filter by Fixture:</span>
                   <select
                     value={selectedFixtureFilter}
@@ -253,7 +253,7 @@ export default function RunsPage() {
                       setSelectedFixtureFilter(e.target.value);
                       setOffset(0);
                     }}
-                    className="rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                    className="rounded-lg border border-[#2d3340] bg-[#181b22] px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
                   >
                     <option value="">All Fixtures</option>
                     {fixtures.map((f) => (
@@ -264,13 +264,13 @@ export default function RunsPage() {
                   </select>
                 </div>
 
-                <div className="text-xs text-slate-500 font-mono">
+                <div className="text-xs text-[#6b7280] font-mono">
                   Showing {runs.length} runs (Page {Math.floor(offset / limit) + 1})
                 </div>
               </div>
 
               {error && (
-                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-300 flex items-center gap-2">
+                <div className="rounded border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-300 flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   <span>{error}</span>
                 </div>
@@ -281,17 +281,17 @@ export default function RunsPage() {
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
                 </div>
               ) : runs.length === 0 ? (
-                <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-12 text-center">
+                <div className="rounded border border-[#222630] bg-[#13161c] p-12 text-center">
                   <PlayCircle className="h-10 w-10 text-slate-600 mx-auto mb-3" />
                   <h3 className="text-base font-semibold text-white">No replay runs recorded</h3>
-                  <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto mb-4">
+                  <p className="text-xs text-[#9aa2b1] mt-1 max-w-sm mx-auto mb-4">
                     Trigger your first fixture replay against a target environment to see execution results and diff comparisons here.
                   </p>
                   {fixtures.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setTriggerModalFixture(fixtures[0] || null)}
-                      className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-indigo-500 transition"
+                      className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-[#0e1015] px-4 py-2 text-xs font-semibold text-white shadow  transition"
                     >
                       <PlayCircle className="h-3.5 w-3.5" />
                       Execute First Run
@@ -299,10 +299,10 @@ export default function RunsPage() {
                   )}
                 </div>
               ) : (
-                <div className="rounded-xl border border-slate-800 bg-slate-900/50 overflow-hidden shadow-lg">
+                <div className="rounded border border-[#222630] bg-[#13161c] overflow-hidden shadow-lg">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-800/60 border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                      <thead className="bg-[#181b22] border-b border-[#222630] text-[11px] font-semibold text-[#9aa2b1] uppercase tracking-wider">
                         <tr>
                           <th className="px-5 py-3.5">Outcome Status</th>
                           <th className="px-5 py-3.5">Fixture / Path</th>
@@ -322,7 +322,7 @@ export default function RunsPage() {
                             <tr
                               key={run.id}
                               onClick={() => openRunDetail(run.id)}
-                              className="hover:bg-slate-800/30 transition cursor-pointer"
+                              className="hover:bg-[#181b22] transition cursor-pointer"
                             >
                               <td className="px-5 py-4 whitespace-nowrap font-sans">
                                 {getStatusBadge(run.status)}
@@ -332,12 +332,12 @@ export default function RunsPage() {
                                 <div className="font-semibold text-white font-sans">
                                   {fix?.name || `Fixture ${run.fixtureId.slice(0, 8)}`}
                                 </div>
-                                <div className="text-[11px] text-slate-400 truncate max-w-xs">
+                                <div className="text-[11px] text-[#9aa2b1] truncate max-w-xs">
                                   {fix ? `${fix.request.method} ${fix.request.path}` : run.fixtureId}
                                 </div>
                               </td>
 
-                              <td className="px-5 py-4 whitespace-nowrap font-sans text-slate-300">
+                              <td className="px-5 py-4 whitespace-nowrap font-sans text-[#9aa2b1]">
                                 {env?.name || run.environmentId.slice(0, 8)}
                               </td>
 
@@ -357,11 +357,11 @@ export default function RunsPage() {
                                 )}
                               </td>
 
-                              <td className="px-5 py-4 whitespace-nowrap text-slate-300">
+                              <td className="px-5 py-4 whitespace-nowrap text-[#9aa2b1]">
                                 {run.durationMs}ms
                               </td>
 
-                              <td className="px-5 py-4 whitespace-nowrap text-slate-400 text-[11px] font-sans">
+                              <td className="px-5 py-4 whitespace-nowrap text-[#9aa2b1] text-[11px] font-sans">
                                 {new Date(run.executedAt).toLocaleString()}
                               </td>
 
@@ -387,12 +387,12 @@ export default function RunsPage() {
                   </div>
 
                   {/* Pagination Footer */}
-                  <div className="px-5 py-3 border-t border-slate-800 bg-slate-900/80 flex items-center justify-between text-xs text-slate-400">
+                  <div className="px-5 py-3 border-t border-[#222630] bg-[#13161c]/80 flex items-center justify-between text-xs text-[#9aa2b1]">
                     <button
                       type="button"
                       disabled={offset === 0}
                       onClick={() => setOffset((prev) => Math.max(0, prev - limit))}
-                      className="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      className="px-3 py-1.5 rounded-lg border border-[#2d3340] bg-[#181b22] text-[#9aa2b1] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
                     >
                       Previous
                     </button>
@@ -403,7 +403,7 @@ export default function RunsPage() {
                       type="button"
                       disabled={runs.length < limit}
                       onClick={() => setOffset((prev) => prev + limit)}
-                      className="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      className="px-3 py-1.5 rounded-lg border border-[#2d3340] bg-[#181b22] text-[#9aa2b1] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
                     >
                       Next
                     </button>
@@ -416,21 +416,21 @@ export default function RunsPage() {
           {/* Historical Run Details & Diff Modal */}
           {detailModalRunId && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
-              <div className="w-full max-w-3xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl my-8 space-y-5">
-                <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+              <div className="w-full max-w-3xl rounded border border-[#222630] bg-[#13161c] p-6 shadow-2xl my-8 space-y-5">
+                <div className="flex items-center justify-between pb-4 border-b border-[#222630]">
                   <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+                    <div className="p-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-[#0e1015]/20 text-indigo-400 border border-indigo-500/30">
                       <Layers className="h-5 w-5" />
                     </div>
                     <div>
                       <h2 className="text-lg font-semibold text-white">Replay Run Detail & Diff</h2>
-                      <p className="text-xs font-mono text-slate-500">ID: {detailModalRunId}</p>
+                      <p className="text-xs font-mono text-[#6b7280]">ID: {detailModalRunId}</p>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setDetailModalRunId(null)}
-                    className="text-slate-400 hover:text-white p-1 text-sm font-semibold rounded"
+                    className="text-[#9aa2b1] hover:text-white p-1 text-sm font-semibold rounded"
                   >
                     ✕
                   </button>
@@ -441,30 +441,30 @@ export default function RunsPage() {
                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
                   </div>
                 ) : detailError ? (
-                  <div className="p-4 rounded-xl border border-rose-500/30 bg-rose-500/10 text-xs text-rose-300 flex items-center gap-2">
+                  <div className="p-4 rounded border border-rose-500/30 bg-rose-500/10 text-xs text-rose-300 flex items-center gap-2">
                     <AlertCircle className="h-4 w-4 shrink-0" />
                     <span>{detailError}</span>
                   </div>
                 ) : runDetail ? (
                   <div className="space-y-4">
                     {/* Run Summary Meta */}
-                    <div className="p-4 rounded-xl border border-slate-800 bg-slate-950 flex flex-wrap items-center justify-between gap-4">
+                    <div className="p-4 rounded border border-[#222630] bg-[#0e1015] flex flex-wrap items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
                         {getStatusBadge(runDetail.status)}
                         {runDetail.httpStatusCode !== null && runDetail.httpStatusCode !== undefined && (
-                          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-200 border border-slate-700">
+                          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-[#181b22] text-[#f0f2f5] border border-[#2d3340]">
                             HTTP {runDetail.httpStatusCode}
                           </span>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-4 text-xs font-mono text-slate-400">
+                      <div className="flex items-center gap-4 text-xs font-mono text-[#9aa2b1]">
                         <div className="flex items-center gap-1.5">
-                          <Clock className="h-3.5 w-3.5 text-slate-500" />
+                          <Clock className="h-3.5 w-3.5 text-[#6b7280]" />
                           <span>{runDetail.durationMs}ms</span>
                         </div>
                         {runDetail.baselineId && (
-                          <div className="flex items-center gap-1.5 text-slate-500">
+                          <div className="flex items-center gap-1.5 text-[#6b7280]">
                             <span>Baseline: {runDetail.baselineId.slice(0, 8)}...</span>
                           </div>
                         )}
@@ -473,16 +473,16 @@ export default function RunsPage() {
 
                     {/* Associated Target Context */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
-                      <div className="p-3 rounded-lg border border-slate-800 bg-slate-800/40">
-                        <span className="text-slate-500 block text-[10px] uppercase font-sans">
+                      <div className="p-3 rounded-lg border border-[#222630] bg-[#181b22]">
+                        <span className="text-[#6b7280] block text-[10px] uppercase font-sans">
                           Target Fixture
                         </span>
                         <span className="text-white font-medium">
                           {fixtureMap.get(runDetail.fixtureId)?.name || runDetail.fixtureId}
                         </span>
                       </div>
-                      <div className="p-3 rounded-lg border border-slate-800 bg-slate-800/40">
-                        <span className="text-slate-500 block text-[10px] uppercase font-sans">
+                      <div className="p-3 rounded-lg border border-[#222630] bg-[#181b22]">
+                        <span className="text-[#6b7280] block text-[10px] uppercase font-sans">
                           Target Environment
                         </span>
                         <span className="text-white font-medium">

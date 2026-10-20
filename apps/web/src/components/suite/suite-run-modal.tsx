@@ -141,7 +141,7 @@ export function SuiteRunModal({
       case 'TRANSPORT_ERROR':
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#181b22] text-[#9aa2b1] border border-[#2d3340]">
             <AlertCircle className="h-3.5 w-3.5" />
             TRANSPORT_ERROR
           </span>
@@ -183,7 +183,7 @@ export function SuiteRunModal({
         );
       default:
         return (
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#181b22] text-[#9aa2b1] border border-[#2d3340]">
             ERROR
           </span>
         );
@@ -192,16 +192,16 @@ export function SuiteRunModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="w-full max-w-4xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl my-8 space-y-6">
+      <div className="w-full max-w-4xl rounded border border-[#222630] bg-[#13161c] p-6 shadow-2xl my-8 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div className="flex items-center justify-between pb-4 border-b border-[#222630]">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-lg bg-cyan-600/20 text-cyan-400 border border-cyan-500/30">
               <Zap className="h-5 w-5" />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-white">Execute Regression Suite</h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[#9aa2b1]">
                 Synchronous multi-fixture playback with assertions, mask rules, and snapshot recording
               </p>
             </div>
@@ -209,32 +209,32 @@ export function SuiteRunModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 text-sm font-semibold rounded"
+            className="text-[#9aa2b1] hover:text-white p-1 text-sm font-semibold rounded"
           >
             ✕
           </button>
         </div>
 
         {/* Suite Details Preview */}
-        <div className="p-4 rounded-xl border border-slate-800 bg-slate-800/40 space-y-2">
+        <div className="p-4 rounded border border-[#222630] bg-[#181b22] space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Layers className="h-4 w-4 text-cyan-400" />
               <span className="font-semibold text-sm text-white">{suite.name}</span>
             </div>
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="text-xs text-[#9aa2b1] font-mono">
               {suite.items.length} Fixtures Configured
             </span>
           </div>
           {suite.description && (
-            <p className="text-xs text-slate-400">{suite.description}</p>
+            <p className="text-xs text-[#9aa2b1]">{suite.description}</p>
           )}
         </div>
 
         {/* Trigger Form */}
         <form onSubmit={handleExecute} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
+            <label className="block text-xs font-medium text-[#9aa2b1] mb-1.5">
               Target Environment *
             </label>
             {environments.length === 0 ? (
@@ -246,7 +246,7 @@ export function SuiteRunModal({
                 value={selectedEnvId}
                 onChange={(e) => setSelectedEnvId(e.target.value)}
                 disabled={isExecuting}
-                className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-white focus:border-cyan-500 focus:outline-none"
+                className="w-full rounded-lg border border-[#2d3340] bg-[#181b22] px-3 py-2 text-sm text-white focus:border-cyan-500 focus:outline-none"
               >
                 {environments.map((env) => (
                   <option key={env.id} value={env.id}>
@@ -258,20 +258,20 @@ export function SuiteRunModal({
           </div>
 
           {selectedEnv && (
-            <div className="flex items-center gap-2 text-xs font-mono text-slate-400 bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+            <div className="flex items-center gap-2 text-xs font-mono text-[#9aa2b1] bg-[#0e1015] p-2.5 rounded-lg border border-[#222630]">
               <Globe className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-              <span className="text-slate-500">Base URL:</span>
-              <span className="text-slate-200 truncate">{selectedEnv.baseUrl}</span>
+              <span className="text-[#6b7280]">Base URL:</span>
+              <span className="text-[#f0f2f5] truncate">{selectedEnv.baseUrl}</span>
             </div>
           )}
 
           {/* Response capture toggle */}
-          <div className="flex items-center justify-between p-3 rounded-lg border border-slate-800 bg-slate-800/30">
+          <div className="flex items-center justify-between p-3 rounded-lg border border-[#222630] bg-[#181b22]">
             <div>
-              <span className="text-xs font-medium text-slate-200 block">
+              <span className="text-xs font-medium text-[#f0f2f5] block">
                 Capture Child Response Bodies
               </span>
-              <span className="text-[11px] text-slate-400">
+              <span className="text-[11px] text-[#9aa2b1]">
                 Enables raw body capture for all fixtures in this run (up to 1MB size limit).
               </span>
             </div>
@@ -281,7 +281,7 @@ export function SuiteRunModal({
                 checked={captureResponseBody}
                 onChange={(e) => setCaptureResponseBody(e.target.checked)}
                 disabled={isExecuting}
-                className="rounded border-slate-700 bg-slate-800 text-cyan-600 focus:ring-0"
+                className="rounded border-[#2d3340] bg-[#181b22] text-cyan-600 focus:ring-0"
               />
             </label>
           </div>
@@ -298,7 +298,7 @@ export function SuiteRunModal({
               type="button"
               onClick={onClose}
               disabled={isExecuting}
-              className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+              className="rounded-lg px-3 py-2 text-xs font-semibold text-[#9aa2b1] hover:text-white transition"
             >
               Cancel
             </button>
@@ -316,9 +316,9 @@ export function SuiteRunModal({
 
         {/* Live Execution Results Section */}
         {summary && (
-          <div className="pt-4 border-t border-slate-800 space-y-4">
+          <div className="pt-4 border-t border-[#222630] space-y-4">
             {/* Metric Overview */}
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
+            <div className="p-4 rounded bg-[#0e1015] border border-[#222630] flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 {getStatusBadge(summary.status)}
                 <div className="flex items-center gap-3 text-xs font-mono">
@@ -330,21 +330,21 @@ export function SuiteRunModal({
                     {summary.failedItems} Failed
                   </span>
                   <span className="text-slate-600">•</span>
-                  <span className="text-slate-400">
+                  <span className="text-[#9aa2b1]">
                     {summary.totalItems} Total
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 text-xs font-mono text-slate-400">
-                <Clock className="h-3.5 w-3.5 text-slate-500" />
+              <div className="flex items-center gap-3 text-xs font-mono text-[#9aa2b1]">
+                <Clock className="h-3.5 w-3.5 text-[#6b7280]" />
                 <span>Total Duration: {summary.durationMs}ms</span>
               </div>
             </div>
 
             {/* Child Fixture Executions List */}
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-800 bg-slate-800/40 text-xs font-semibold text-white">
+            <div className="rounded border border-[#222630] bg-[#13161c]/60 overflow-hidden">
+              <div className="px-4 py-3 border-b border-[#222630] bg-[#181b22] text-xs font-semibold text-white">
                 Fixture Dispatches ({summary.results.length})
               </div>
 
@@ -354,13 +354,13 @@ export function SuiteRunModal({
                   const isExpanded = expandedResultIdx === idx;
 
                   return (
-                    <div key={idx} className="transition hover:bg-slate-800/20">
+                    <div key={idx} className="transition hover:bg-[#181b22]">
                       <div
                         onClick={() => setExpandedResultIdx(isExpanded ? null : idx)}
                         className="p-4 flex items-center justify-between gap-3 cursor-pointer"
                       >
                         <div className="flex items-center gap-3">
-                          <button type="button" className="text-slate-500">
+                          <button type="button" className="text-[#6b7280]">
                             {isExpanded ? (
                               <ChevronDown className="h-4 w-4" />
                             ) : (
@@ -373,7 +373,7 @@ export function SuiteRunModal({
                             <div className="font-semibold text-xs text-white flex items-center gap-2">
                               <span>{fix?.name || `Fixture ${res.fixtureId.slice(0, 8)}`}</span>
                               {fix && (
-                                <span className="font-mono text-[10px] text-slate-400">
+                                <span className="font-mono text-[10px] text-[#9aa2b1]">
                                   {fix.request.method} {fix.request.path}
                                 </span>
                               )}
@@ -386,9 +386,9 @@ export function SuiteRunModal({
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-4 text-xs font-mono text-slate-400">
+                        <div className="flex items-center gap-4 text-xs font-mono text-[#9aa2b1]">
                           {res.httpStatusCode !== null && res.httpStatusCode !== undefined && (
-                            <span className="font-bold text-slate-300">
+                            <span className="font-bold text-[#9aa2b1]">
                               HTTP {res.httpStatusCode}
                             </span>
                           )}
@@ -398,7 +398,7 @@ export function SuiteRunModal({
 
                       {/* Expanded Diff Viewer for Child Run */}
                       {isExpanded && (
-                        <div className="p-4 pt-0 border-t border-slate-800/60 bg-slate-950/40">
+                        <div className="p-4 pt-0 border-t border-[#222630] bg-[#0e1015]/40">
                           <div className="py-2">
                             <VisualDiffViewer
                               diffFound={res.diffFound}

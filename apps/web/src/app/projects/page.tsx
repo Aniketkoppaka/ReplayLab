@@ -84,7 +84,7 @@ export default function ProjectsPage() {
                 <FolderKanban className="h-6 w-6 text-blue-400" />
                 Projects & Workspaces
               </h1>
-              <p className="mt-1 text-sm text-slate-400">
+              <p className="mt-1 text-sm text-[#9aa2b1]">
                 Tenant isolation boundaries, environment keys, and RBAC memberships
               </p>
             </div>
@@ -94,7 +94,7 @@ export default function ProjectsPage() {
                 setIsCreateOpen(true);
                 setFormError(null);
               }}
-              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-[#0e1015] px-4 py-2 text-sm font-semibold text-white shadow transition  focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
             >
               <Plus className="h-4 w-4" />
               New Project
@@ -104,9 +104,9 @@ export default function ProjectsPage() {
           {/* Project Creation Modal */}
           {isCreateOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+              <div className="w-full max-w-md rounded border border-[#222630] bg-[#13161c] p-6 shadow-2xl">
                 <h3 className="text-lg font-semibold text-white">Create New Project</h3>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-[#9aa2b1]">
                   Projects represent isolated workspaces with dedicated environments and test fixtures.
                 </p>
 
@@ -119,7 +119,7 @@ export default function ProjectsPage() {
 
                 <form onSubmit={handleCreate} className="mt-4 space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                    <label className="block text-xs font-medium text-[#9aa2b1] mb-1.5">
                       Project Name *
                     </label>
                     <input
@@ -128,12 +128,12 @@ export default function ProjectsPage() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g. Payments Gateway"
-                      className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full rounded-lg border border-[#2d3340] bg-[#181b22] px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                    <label className="block text-xs font-medium text-[#9aa2b1] mb-1.5">
                       Description (Optional)
                     </label>
                     <textarea
@@ -141,22 +141,22 @@ export default function ProjectsPage() {
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="e.g. Core checkout API regression tests"
-                      className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full rounded-lg border border-[#2d3340] bg-[#181b22] px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
 
-                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#222630]">
                     <button
                       type="button"
                       onClick={() => setIsCreateOpen(false)}
-                      className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+                      className="rounded-lg px-3 py-2 text-xs font-semibold text-[#9aa2b1] hover:text-white transition"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-indigo-500 disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-[#0e1015] px-4 py-2 text-xs font-semibold text-white shadow transition  disabled:opacity-50"
                     >
                       {isSubmitting ? 'Creating...' : 'Create Project'}
                     </button>
@@ -169,19 +169,19 @@ export default function ProjectsPage() {
           {/* Delete Confirmation Modal */}
           {deleteConfirmId && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="w-full max-w-sm rounded-2xl border border-rose-500/20 bg-slate-900 p-6 shadow-2xl">
+              <div className="w-full max-w-sm rounded border border-rose-500/20 bg-[#13161c] p-6 shadow-2xl">
                 <div className="flex items-center gap-3 text-rose-400 mb-3">
                   <AlertCircle className="h-6 w-6 shrink-0" />
                   <h3 className="text-base font-semibold text-white">Delete Project</h3>
                 </div>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <p className="text-xs text-[#9aa2b1] leading-relaxed">
                   Are you sure you want to delete this project? All associated environments, fixtures, baselines, and test runs will be permanently removed.
                 </p>
                 <div className="mt-6 flex items-center justify-end gap-3">
                   <button
                     type="button"
                     onClick={() => setDeleteConfirmId(null)}
-                    className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-white transition"
+                    className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#9aa2b1] hover:text-white transition"
                   >
                     Cancel
                   </button>
@@ -203,7 +203,7 @@ export default function ProjectsPage() {
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
             </div>
           ) : error ? (
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6 text-amber-300">
+            <div className="rounded border border-amber-500/30 bg-amber-500/10 p-6 text-amber-300">
               <div className="flex items-center gap-2 font-medium text-sm">
                 <Shield className="h-4 w-4" />
                 Workspace Notice
@@ -211,16 +211,16 @@ export default function ProjectsPage() {
               <p className="mt-2 text-xs text-amber-200/80 leading-relaxed">{error}</p>
             </div>
           ) : projects.length === 0 ? (
-            <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-12 text-center">
+            <div className="rounded border border-[#222630] bg-[#13161c] p-12 text-center">
               <FolderKanban className="h-10 w-10 text-slate-600 mx-auto mb-3" />
               <h3 className="text-base font-semibold text-white">No projects found</h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto mb-5">
+              <p className="text-xs text-[#9aa2b1] mt-1 max-w-sm mx-auto mb-5">
                 Create your first project to start organizing target environments, fixtures, and regression test suites.
               </p>
               <button
                 type="button"
                 onClick={() => setIsCreateOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-indigo-500 transition"
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-[#0e1015] px-4 py-2 text-xs font-semibold text-white shadow  transition"
               >
                 <Plus className="h-4 w-4" />
                 Create Project
@@ -236,10 +236,10 @@ export default function ProjectsPage() {
                 return (
                   <div
                     key={p.id}
-                    className={`rounded-xl border p-6 flex flex-col justify-between transition-all ${
+                    className={`rounded border p-6 flex flex-col justify-between transition-all ${
                       isSelected
                         ? 'border-indigo-500 bg-indigo-950/20 shadow-lg shadow-indigo-950/30 ring-1 ring-indigo-500/30'
-                        : 'border-slate-800 bg-slate-900/50 hover:border-slate-700'
+                        : 'border-[#222630] bg-[#13161c] hover:border-[#2d3340]'
                     }`}
                   >
                     <div>
@@ -250,7 +250,7 @@ export default function ProjectsPage() {
                               ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                               : role === 'EDITOR'
                               ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                              : 'bg-slate-800 text-slate-400 border-slate-700'
+                              : 'bg-[#181b22] text-[#9aa2b1] border-[#2d3340]'
                           }`}
                         >
                           {role}
@@ -268,17 +268,17 @@ export default function ProjectsPage() {
                         {p.name}
                       </h3>
                       {p.description && (
-                        <p className="mt-1 text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                        <p className="mt-1 text-xs text-[#9aa2b1] line-clamp-2 leading-relaxed">
                           {p.description}
                         </p>
                       )}
-                      <p className="mt-2 text-[11px] font-mono text-slate-500 truncate">
+                      <p className="mt-2 text-[11px] font-mono text-[#6b7280] truncate">
                         ID: {p.id}
                       </p>
                     </div>
 
-                    <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-                      <div className="flex items-center gap-1.5 text-slate-500">
+                    <div className="mt-6 pt-4 border-t border-[#222630] flex items-center justify-between text-xs text-[#9aa2b1]">
+                      <div className="flex items-center gap-1.5 text-[#6b7280]">
                         <Clock className="h-3.5 w-3.5" />
                         {new Date(p.createdAt).toLocaleDateString()}
                       </div>
@@ -300,7 +300,7 @@ export default function ProjectsPage() {
                             type="button"
                             title="Delete Project"
                             onClick={() => setDeleteConfirmId(p.id)}
-                            className="text-slate-500 hover:text-rose-400 transition p-1"
+                            className="text-[#6b7280] hover:text-rose-400 transition p-1"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>

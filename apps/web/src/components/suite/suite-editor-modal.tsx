@@ -209,20 +209,20 @@ export function SuiteEditorModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="w-full max-w-3xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl my-8 space-y-6">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+      <div className="w-full max-w-3xl rounded border border-[#222630] bg-[#13161c] p-6 shadow-2xl my-8 space-y-6">
+        <div className="flex items-center justify-between pb-4 border-b border-[#222630]">
           <div>
             <h2 className="text-lg font-semibold text-white">
               {isEditing ? 'Edit Regression Suite' : 'Create Regression Suite'}
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[#9aa2b1]">
               Configure ordered test fixtures and dynamic field masking rules
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 text-sm font-semibold rounded"
+            className="text-[#9aa2b1] hover:text-white p-1 text-sm font-semibold rounded"
           >
             ✕
           </button>
@@ -238,7 +238,7 @@ export function SuiteEditorModal({
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid grid-cols-1 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+              <label className="block text-xs font-medium text-[#9aa2b1] mb-1.5">
                 Suite Name *
               </label>
               <input
@@ -247,12 +247,12 @@ export function SuiteEditorModal({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Core Authentication & Checkout Smoke Suite"
-                className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-white focus:border-cyan-500 focus:outline-none"
+                className="w-full rounded-lg border border-[#2d3340] bg-[#181b22] px-3 py-2 text-sm text-white focus:border-cyan-500 focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+              <label className="block text-xs font-medium text-[#9aa2b1] mb-1.5">
                 Description (Optional)
               </label>
               <input
@@ -260,18 +260,18 @@ export function SuiteEditorModal({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="e.g. Runs on staging deploys to verify regression resistance"
-                className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-white focus:border-cyan-500 focus:outline-none"
+                className="w-full rounded-lg border border-[#2d3340] bg-[#181b22] px-3 py-2 text-sm text-white focus:border-cyan-500 focus:outline-none"
               />
             </div>
           </div>
 
           {/* Add Fixture Section */}
-          <div className="p-4 rounded-xl border border-slate-800 bg-slate-800/40 space-y-3">
+          <div className="p-4 rounded border border-[#222630] bg-[#181b22] space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-white">
                 Add Fixture to Suite
               </span>
-              <span className="text-[11px] text-slate-500">
+              <span className="text-[11px] text-[#6b7280]">
                 Fixtures execute in sequential order
               </span>
             </div>
@@ -280,7 +280,7 @@ export function SuiteEditorModal({
               <select
                 value={selectedFixtureToAdd}
                 onChange={(e) => setSelectedFixtureToAdd(e.target.value)}
-                className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white focus:border-cyan-500 focus:outline-none"
+                className="flex-1 rounded-lg border border-[#2d3340] bg-[#181b22] px-3 py-1.5 text-xs text-white focus:border-cyan-500 focus:outline-none"
               >
                 {availableFixtures.map((f) => (
                   <option key={f.id} value={f.id}>
@@ -303,12 +303,12 @@ export function SuiteEditorModal({
 
           {/* Ordered Items List */}
           <div className="space-y-3">
-            <label className="block text-xs font-medium text-slate-300">
+            <label className="block text-xs font-medium text-[#9aa2b1]">
               Suite Fixtures & Mask Rules ({items.length})
             </label>
 
             {items.length === 0 ? (
-              <div className="p-6 rounded-xl border border-slate-800 bg-slate-900/40 text-center text-xs text-slate-500">
+              <div className="p-6 rounded border border-[#222630] bg-[#13161c] text-center text-xs text-[#6b7280]">
                 No fixtures in this suite yet. Add fixtures above to configure regression execution.
               </div>
             ) : (
@@ -319,18 +319,18 @@ export function SuiteEditorModal({
                   return (
                     <div
                       key={idx}
-                      className="p-4 rounded-xl border border-slate-800 bg-slate-900/60 space-y-3"
+                      className="p-4 rounded border border-[#222630] bg-[#13161c]/60 space-y-3"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2.5">
-                          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400">
+                          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-[#181b22] text-[#9aa2b1]">
                             #{idx + 1}
                           </span>
                           <span className="font-semibold text-xs text-white">
                             {fix?.name || `Fixture ${item.fixtureId.slice(0, 8)}`}
                           </span>
                           {fix && (
-                            <span className="font-mono text-[10px] text-slate-400">
+                            <span className="font-mono text-[10px] text-[#9aa2b1]">
                               {fix.request.method} {fix.request.path}
                             </span>
                           )}
@@ -341,7 +341,7 @@ export function SuiteEditorModal({
                             type="button"
                             disabled={idx === 0}
                             onClick={() => handleMoveUp(idx)}
-                            className="p-1 text-slate-400 hover:text-white disabled:opacity-30 rounded hover:bg-slate-800"
+                            className="p-1 text-[#9aa2b1] hover:text-white disabled:opacity-30 rounded hover:bg-[#181b22]"
                             title="Move Up"
                           >
                             <ArrowUp className="h-3.5 w-3.5" />
@@ -350,7 +350,7 @@ export function SuiteEditorModal({
                             type="button"
                             disabled={idx === items.length - 1}
                             onClick={() => handleMoveDown(idx)}
-                            className="p-1 text-slate-400 hover:text-white disabled:opacity-30 rounded hover:bg-slate-800"
+                            className="p-1 text-[#9aa2b1] hover:text-white disabled:opacity-30 rounded hover:bg-[#181b22]"
                             title="Move Down"
                           >
                             <ArrowDown className="h-3.5 w-3.5" />
@@ -358,7 +358,7 @@ export function SuiteEditorModal({
                           <button
                             type="button"
                             onClick={() => handleRemoveItem(idx)}
-                            className="p-1 text-slate-400 hover:text-rose-400 rounded hover:bg-slate-800"
+                            className="p-1 text-[#9aa2b1] hover:text-rose-400 rounded hover:bg-[#181b22]"
                             title="Remove"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -367,9 +367,9 @@ export function SuiteEditorModal({
                       </div>
 
                       {/* Differential Mask Rules Section for this item */}
-                      <div className="pl-6 pt-2 border-t border-slate-800/60 space-y-2">
+                      <div className="pl-6 pt-2 border-t border-[#222630] space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1.5">
+                          <span className="text-[11px] font-medium text-[#9aa2b1] flex items-center gap-1.5">
                             <Sliders className="h-3 w-3 text-cyan-400" />
                             Differential Field Mask Rules
                           </span>
@@ -394,14 +394,14 @@ export function SuiteEditorModal({
                                   onChange={(e) =>
                                     handleUpdateMaskRule(idx, rIdx, 'path', e.target.value)
                                   }
-                                  className="flex-1 rounded border border-slate-700 bg-slate-800 px-2.5 py-1 font-mono text-xs text-white focus:outline-none"
+                                  className="flex-1 rounded border border-[#2d3340] bg-[#181b22] px-2.5 py-1 font-mono text-xs text-white focus:outline-none"
                                 />
                                 <select
                                   value={rule.action}
                                   onChange={(e) =>
                                     handleUpdateMaskRule(idx, rIdx, 'action', e.target.value)
                                   }
-                                  className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-white focus:outline-none"
+                                  className="rounded border border-[#2d3340] bg-[#181b22] px-2 py-1 text-xs text-white focus:outline-none"
                                 >
                                   <option value="IGNORE">IGNORE (Skip Diff)</option>
                                   <option value="TYPE_MATCH">TYPE_MATCH (Match Type Only)</option>
@@ -409,7 +409,7 @@ export function SuiteEditorModal({
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveMaskRule(idx, rIdx)}
-                                  className="text-slate-500 hover:text-rose-400 p-1"
+                                  className="text-[#6b7280] hover:text-rose-400 p-1"
                                 >
                                   <Trash2 className="h-3 w-3" />
                                 </button>
@@ -429,12 +429,12 @@ export function SuiteEditorModal({
             )}
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#222630]">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+              className="rounded-lg px-3 py-2 text-xs font-semibold text-[#9aa2b1] hover:text-white transition"
             >
               Cancel
             </button>

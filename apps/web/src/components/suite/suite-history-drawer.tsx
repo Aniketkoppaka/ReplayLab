@@ -107,7 +107,7 @@ export function SuiteHistoryDrawer({
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#181b22] text-[#9aa2b1] border border-[#2d3340]">
             <AlertCircle className="h-3 w-3" />
             ERROR
           </span>
@@ -117,21 +117,21 @@ export function SuiteHistoryDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl my-8 space-y-5">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+      <div className="w-full max-w-2xl rounded border border-[#222630] bg-[#13161c] p-6 shadow-2xl my-8 space-y-5">
+        <div className="flex items-center justify-between pb-4 border-b border-[#222630]">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-lg bg-cyan-600/20 text-cyan-400 border border-cyan-500/30">
               <Layers className="h-5 w-5" />
             </div>
             <div>
               <h2 className="text-base font-semibold text-white">Execution History</h2>
-              <p className="text-xs text-slate-400">Suite: {suiteName}</p>
+              <p className="text-xs text-[#9aa2b1]">Suite: {suiteName}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 text-sm font-semibold rounded"
+            className="text-[#9aa2b1] hover:text-white p-1 text-sm font-semibold rounded"
           >
             ✕
           </button>
@@ -149,24 +149,24 @@ export function SuiteHistoryDrawer({
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent" />
           </div>
         ) : runs.length === 0 ? (
-          <div className="p-8 text-center text-xs text-slate-500 bg-slate-950/40 rounded-xl border border-slate-800">
+          <div className="p-8 text-center text-xs text-[#6b7280] bg-[#0e1015]/40 rounded border border-[#222630]">
             No executions recorded for this suite yet.
           </div>
         ) : (
-          <div className="divide-y divide-slate-800 border border-slate-800 rounded-xl bg-slate-950/40 overflow-hidden font-mono">
+          <div className="divide-y divide-slate-800 border border-[#222630] rounded bg-[#0e1015]/40 overflow-hidden font-mono">
             {runs.map((run) => (
               <div
                 key={run.id}
-                className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs hover:bg-slate-800/30 transition"
+                className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs hover:bg-[#181b22] transition"
               >
                 <div className="space-y-1.5 font-sans">
                   <div className="flex items-center gap-2.5">
                     {getStatusBadge(run.status)}
-                    <span className="font-mono text-xs text-slate-300">
+                    <span className="font-mono text-xs text-[#9aa2b1]">
                       ID: {run.id.slice(0, 8)}...
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 text-slate-400 text-xs font-mono">
+                  <div className="flex items-center gap-3 text-[#9aa2b1] text-xs font-mono">
                     <span className="text-emerald-400 font-bold">{run.passedItems} Passed</span>
                     <span>•</span>
                     <span className="text-rose-400 font-bold">{run.failedItems} Failed</span>
@@ -175,12 +175,12 @@ export function SuiteHistoryDrawer({
                   </div>
                 </div>
 
-                <div className="text-right text-xs font-mono text-slate-400 space-y-1">
-                  <div className="flex items-center justify-end gap-1 text-slate-300">
-                    <Clock className="h-3.5 w-3.5 text-slate-500" />
+                <div className="text-right text-xs font-mono text-[#9aa2b1] space-y-1">
+                  <div className="flex items-center justify-end gap-1 text-[#9aa2b1]">
+                    <Clock className="h-3.5 w-3.5 text-[#6b7280]" />
                     <span>{run.durationMs}ms</span>
                   </div>
-                  <div className="text-[11px] text-slate-500 font-sans">
+                  <div className="text-[11px] text-[#6b7280] font-sans">
                     {new Date(run.startedAt).toLocaleString()}
                   </div>
                 </div>
@@ -193,7 +193,7 @@ export function SuiteHistoryDrawer({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+            className="rounded-lg px-4 py-2 text-xs font-semibold text-[#9aa2b1] hover:text-white transition"
           >
             Close
           </button>

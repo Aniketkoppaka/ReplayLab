@@ -69,25 +69,25 @@ export function VisualDiffViewer({
     switch (type) {
       case 'ADDED':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-950/40 text-emerald-400 border border-emerald-800/40">
             + ADDED
           </span>
         );
       case 'REMOVED':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-950/40 text-rose-400 border border-rose-800/40">
             - REMOVED
           </span>
         );
       case 'CHANGED':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-950/40 text-amber-400 border border-amber-800/40">
             ~ CHANGED
           </span>
         );
       case 'TYPE_MISMATCH':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-950/40 text-purple-400 border border-purple-800/40">
             ≠ TYPE_MISMATCH
           </span>
         );
@@ -97,94 +97,82 @@ export function VisualDiffViewer({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* High-Level Comparison Banner */}
       {!diffFound && status === 'SUCCESS' && (
-        <div className="flex items-center gap-3 p-4 rounded-xl border border-emerald-500/30 bg-emerald-950/20 text-emerald-300">
-          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
+        <div className="flex items-center gap-2.5 p-3 rounded border border-emerald-900/40 bg-emerald-950/20 text-emerald-300">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
           <div className="text-xs">
-            <div className="font-semibold text-white">Full Differential Match</div>
-            <div className="text-emerald-300/80 mt-0.5">
-              The HTTP response matches baseline expectations exactly. No structural or value differences detected.
-            </div>
+            <span className="font-semibold text-emerald-300">Full Differential Match: </span>
+            <span className="text-[#9aa2b1]">Response body, headers, and status code match baseline snapshot precisely.</span>
           </div>
         </div>
       )}
 
       {status === 'ASSERTION_FAILURE' && (
-        <div className="flex items-center gap-3 p-4 rounded-xl border border-rose-500/30 bg-rose-950/20 text-rose-300">
-          <XCircle className="h-5 w-5 shrink-0 text-rose-400" />
+        <div className="flex items-center gap-2.5 p-3 rounded border border-rose-900/40 bg-rose-950/20 text-rose-300">
+          <XCircle className="h-4 w-4 shrink-0 text-rose-400" />
           <div className="text-xs">
-            <div className="font-semibold text-white">Baseline Assertion Discrepancy</div>
-            <div className="text-rose-300/80 mt-0.5">
-              Differences detected between actual response and the immutable baseline snapshot.
-            </div>
+            <span className="font-semibold text-rose-300">Baseline Assertion Discrepancy: </span>
+            <span className="text-[#9aa2b1]">Differences detected between actual response and the immutable baseline snapshot.</span>
           </div>
         </div>
       )}
 
       {status === 'HTTP_ERROR' && (
-        <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-500/30 bg-amber-950/20 text-amber-300">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-400" />
+        <div className="flex items-center gap-2.5 p-3 rounded border border-amber-900/40 bg-amber-950/20 text-amber-300">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
           <div className="text-xs">
-            <div className="font-semibold text-white">Target Returned HTTP Error</div>
-            <div className="text-amber-300/80 mt-0.5">
-              Received HTTP {httpStatusCode || 'Error'}. (Target host was reachable, but returned a 4xx or 5xx status code).
-            </div>
+            <span className="font-semibold text-amber-300">Target Returned HTTP Error: </span>
+            <span className="text-[#9aa2b1]">Received HTTP {httpStatusCode || 'Error'}. (Target host reachable, returned 4xx or 5xx code).</span>
           </div>
         </div>
       )}
 
       {status === 'SSRF_BLOCKED' && (
-        <div className="flex items-center gap-3 p-4 rounded-xl border border-rose-500/30 bg-rose-950/30 text-rose-300">
-          <ShieldAlert className="h-5 w-5 shrink-0 text-rose-400" />
+        <div className="flex items-center gap-2.5 p-3 rounded border border-rose-900/40 bg-rose-950/30 text-rose-300">
+          <ShieldAlert className="h-4 w-4 shrink-0 text-rose-400" />
           <div className="text-xs">
-            <div className="font-semibold text-white">SSRF Security Policy Blocked</div>
-            <div className="text-rose-300/80 mt-0.5">
-              {errorMessage || 'Dispatch destination resolved to a private subnet, loopback address, or cloud metadata endpoint.'}
-            </div>
+            <span className="font-semibold text-rose-300">SSRF Security Policy Blocked: </span>
+            <span className="text-[#9aa2b1]">{errorMessage || 'Target destination resolved to a private, loopback, or metadata address.'}</span>
           </div>
         </div>
       )}
 
       {status === 'TIMEOUT' && (
-        <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-500/30 bg-amber-950/20 text-amber-300">
-          <Clock className="h-5 w-5 shrink-0 text-amber-400" />
+        <div className="flex items-center gap-2.5 p-3 rounded border border-amber-900/40 bg-amber-950/20 text-amber-300">
+          <Clock className="h-4 w-4 shrink-0 text-amber-400" />
           <div className="text-xs">
-            <div className="font-semibold text-white">Execution Timeout</div>
-            <div className="text-amber-300/80 mt-0.5">
-              Target host did not complete socket response within the configured timeout window.
-            </div>
+            <span className="font-semibold text-amber-300">Execution Timeout: </span>
+            <span className="text-[#9aa2b1]">Target socket did not respond within the configured timeout window.</span>
           </div>
         </div>
       )}
 
       {status === 'TRANSPORT_ERROR' && (
-        <div className="flex items-center gap-3 p-4 rounded-xl border border-slate-700 bg-slate-900/60 text-slate-300">
-          <XCircle className="h-5 w-5 shrink-0 text-rose-400" />
+        <div className="flex items-center gap-2.5 p-3 rounded border border-[#2d3340] bg-[#181b22] text-[#f0f2f5]">
+          <XCircle className="h-4 w-4 shrink-0 text-rose-400" />
           <div className="text-xs">
-            <div className="font-semibold text-white">Network Transport Failure</div>
-            <div className="text-slate-400 mt-0.5">
-              {errorMessage || 'A network error (e.g. ECONNREFUSED, socket drop, or DNS resolution failure) interrupted dispatch.'}
-            </div>
+            <span className="font-semibold text-rose-300">Network Transport Failure: </span>
+            <span className="text-[#9aa2b1]">{errorMessage || 'Network connection dropped, refused, or DNS resolution failed.'}</span>
           </div>
         </div>
       )}
 
       {/* Status Code Comparison Card (if statusCode differs) */}
       {baselineStatusCode && httpStatusCode && baselineStatusCode !== httpStatusCode && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-          <div className="text-xs font-semibold text-white mb-2 flex items-center gap-2">
-            <FileDiff className="h-4 w-4 text-amber-400" />
+        <div className="rounded border border-[#222630] bg-[#13161c] p-3">
+          <div className="text-xs font-semibold text-[#f0f2f5] mb-2 flex items-center gap-2">
+            <FileDiff className="h-3.5 w-3.5 text-amber-400" />
             HTTP Status Code Mismatch
           </div>
-          <div className="grid grid-cols-2 gap-4 text-xs font-mono">
-            <div className="p-3 rounded-lg bg-slate-800/60 border border-slate-700">
-              <span className="text-slate-400 block text-[11px] mb-1">Expected Baseline:</span>
+          <div className="grid grid-cols-2 gap-3 text-xs font-mono">
+            <div className="p-2.5 rounded bg-[#181b22] border border-[#2d3340]">
+              <span className="text-[#6b7280] block text-[10px] uppercase mb-0.5">Expected Baseline</span>
               <span className="text-emerald-400 font-bold text-sm">HTTP {baselineStatusCode}</span>
             </div>
-            <div className="p-3 rounded-lg bg-slate-800/60 border border-slate-700">
-              <span className="text-slate-400 block text-[11px] mb-1">Actual Response:</span>
+            <div className="p-2.5 rounded bg-[#181b22] border border-[#2d3340]">
+              <span className="text-[#6b7280] block text-[10px] uppercase mb-0.5">Actual Response</span>
               <span className="text-rose-400 font-bold text-sm">HTTP {httpStatusCode}</span>
             </div>
           </div>
@@ -193,32 +181,30 @@ export function VisualDiffViewer({
 
       {/* Structured Differences Table */}
       {parsedDiff && parsedDiff.differences.length > 0 && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-800 bg-slate-800/40 flex items-center justify-between">
-            <span className="text-xs font-semibold text-white flex items-center gap-2">
-              <FileDiff className="h-4 w-4 text-indigo-400" />
+        <div className="rounded border border-[#222630] bg-[#13161c] overflow-hidden">
+          <div className="px-3.5 py-2 border-b border-[#222630] bg-[#181b22] flex items-center justify-between">
+            <span className="text-xs font-semibold text-[#f0f2f5] flex items-center gap-2">
+              <FileDiff className="h-3.5 w-3.5 text-amber-400" />
               Structural & Value Differences ({parsedDiff.differences.length})
             </span>
-            <span className="text-[11px] text-slate-500 font-mono">
-              Semantic Diff (Sensitive fields redacted)
+            <span className="text-[10px] text-[#6b7280] font-mono">
+              Semantic Diff
             </span>
           </div>
 
-          <div className="divide-y divide-slate-800/80">
+          <div className="divide-y divide-[#222630]">
             {parsedDiff.differences.map((diff, idx) => (
-              <div key={idx} className="p-4 space-y-2 hover:bg-slate-800/20 transition">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    {getDiffBadge(diff.type)}
-                    <span className="font-mono text-xs font-semibold text-indigo-300">
-                      {diff.path}
-                    </span>
-                  </div>
+              <div key={idx} className="p-3 space-y-2 hover:bg-[#181b22]/50 transition">
+                <div className="flex items-center gap-2">
+                  {getDiffBadge(diff.type)}
+                  <span className="font-mono text-xs font-semibold text-[#f0f2f5]">
+                    {diff.path}
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono pt-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono">
                   {diff.expected !== undefined && (
-                    <div className="p-2.5 rounded bg-rose-950/20 border border-rose-900/30">
+                    <div className="p-2 rounded bg-rose-950/20 border border-rose-900/30">
                       <span className="text-rose-400 text-[10px] uppercase font-bold block mb-1">
                         Expected (Baseline)
                       </span>
@@ -229,7 +215,7 @@ export function VisualDiffViewer({
                   )}
 
                   {diff.actual !== undefined && (
-                    <div className="p-2.5 rounded bg-emerald-950/20 border border-emerald-900/30">
+                    <div className="p-2 rounded bg-emerald-950/20 border border-emerald-900/30">
                       <span className="text-emerald-400 text-[10px] uppercase font-bold block mb-1">
                         Actual (Received)
                       </span>
@@ -245,26 +231,26 @@ export function VisualDiffViewer({
         </div>
       )}
 
-      {/* Captured Response Body (or safe notice) */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+      {/* Captured Response Body */}
+      <div className="rounded border border-[#222630] bg-[#13161c] p-3">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-white">Response Body</span>
+          <span className="text-xs font-semibold text-[#f0f2f5]">Response Body</span>
           {bodyType && (
-            <span className="text-[10px] font-mono text-slate-500 uppercase">
+            <span className="text-[10px] font-mono text-[#6b7280] uppercase">
               Format: {bodyType}
             </span>
           )}
         </div>
 
         {body !== null && body !== undefined ? (
-          <pre className="font-mono text-xs text-slate-200 bg-slate-950 p-3 rounded-lg border border-slate-800 overflow-x-auto max-h-64 whitespace-pre-wrap">
+          <pre className="font-mono text-xs text-[#f0f2f5] bg-[#0e1015] p-3 rounded border border-[#222630] overflow-x-auto max-h-64 whitespace-pre-wrap">
             {typeof body === 'string' ? body : JSON.stringify(body, null, 2)}
           </pre>
         ) : (
-          <div className="flex items-center gap-2 text-xs text-slate-500 italic p-3 rounded-lg bg-slate-950 border border-slate-800/80">
-            <EyeOff className="h-4 w-4 shrink-0 text-slate-600" />
-            <span>
-              Response body was omitted by default to prevent secret leakage and bounded memory consumption. Opt in via &quot;Capture Response Body&quot; during trigger.
+          <div className="flex items-center gap-2 text-xs text-[#6b7280] italic p-2.5 rounded bg-[#0e1015] border border-[#222630]">
+            <EyeOff className="h-3.5 w-3.5 shrink-0 text-[#6b7280]" />
+            <span className="text-[11px]">
+              Response body omitted by default for secret safety and bounded size. Opt in via &quot;Capture Response Body&quot; during trigger.
             </span>
           </div>
         )}

@@ -14,8 +14,8 @@ import {
   ShieldAlert,
   LogOut,
   User as UserIcon,
-  Activity,
   ChevronDown,
+  Terminal,
 } from 'lucide-react';
 
 interface NavItem {
@@ -43,27 +43,27 @@ export function AppShell({ children }: AppShellProps) {
   const { projects, activeProject, setActiveProjectId } = useProject();
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100">
-      {/* Sidebar */}
-      <aside className="w-64 border-r border-slate-800 bg-slate-900/50 flex flex-col justify-between shrink-0">
+    <div className="flex min-h-screen bg-[#0e1015] text-[#f0f2f5]">
+      {/* Sidebar - Compact Developer Workspace */}
+      <aside className="w-56 border-r border-[#222630] bg-[#13161c] flex flex-col justify-between shrink-0 select-none">
         <div>
-          {/* Logo / Header */}
-          <div className="flex items-center gap-3 px-6 py-5 border-b border-slate-800/80">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/30">
-              <Activity className="h-5 w-5" />
+          {/* Brand header */}
+          <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-[#222630]">
+            <div className="flex h-7 w-7 items-center justify-center rounded bg-[#20242c] border border-[#2d3340] text-emerald-400">
+              <Terminal className="h-4 w-4" />
             </div>
-            <div>
-              <span className="font-semibold text-white tracking-tight text-base block leading-tight">
+            <div className="leading-tight">
+              <span className="font-semibold text-sm tracking-tight text-[#f0f2f5] block">
                 ReplayLab
               </span>
-              <span className="text-[11px] font-medium text-indigo-400 uppercase tracking-wider">
-                API Platform
+              <span className="text-[10px] font-mono text-[#6b7280]">
+                v0.1.0 • api replay
               </span>
             </div>
           </div>
 
           {/* Navigation Links */}
-          <nav className="p-4 space-y-1">
+          <nav className="p-2 space-y-0.5">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
@@ -71,13 +71,13 @@ export function AppShell({ children }: AppShellProps) {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
                     isActive
-                      ? 'bg-indigo-600/15 text-indigo-400 font-semibold border border-indigo-500/20'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                      ? 'bg-[#20242c] text-[#f0f2f5] font-semibold border border-[#2d3340]'
+                      : 'text-[#9aa2b1] hover:text-[#f0f2f5] hover:bg-[#181b22]'
                   }`}
                 >
-                  <Icon className={`h-4 w-4 ${isActive ? 'text-indigo-400' : 'text-slate-400'}`} />
+                  <Icon className={`h-3.5 w-3.5 ${isActive ? 'text-emerald-400' : 'text-[#6b7280]'}`} />
                   {item.name}
                 </Link>
               );
@@ -86,28 +86,26 @@ export function AppShell({ children }: AppShellProps) {
         </div>
 
         {/* User profile / session footer */}
-        <div className="p-4 border-t border-slate-800/80 bg-slate-900/30">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2.5 overflow-hidden">
-              <div className="h-8 w-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 text-slate-300">
-                <UserIcon className="h-4 w-4" />
+        <div className="p-2.5 border-t border-[#222630] bg-[#111318]">
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <div className="h-6 w-6 rounded bg-[#20242c] border border-[#2d3340] flex items-center justify-center shrink-0 text-[#9aa2b1]">
+              <UserIcon className="h-3 w-3" />
+            </div>
+            <div className="truncate text-xs leading-none">
+              <div className="font-medium text-[#f0f2f5] truncate text-[11px]">
+                {user?.email || (user?.user_metadata?.name as string) || 'Authenticated'}
               </div>
-              <div className="truncate text-xs">
-                <div className="font-medium text-slate-200 truncate">
-                  {user?.email || (user?.user_metadata?.name as string) || 'Authenticated User'}
-                </div>
-                <div className="text-slate-500 text-[10px] truncate">
-                  {user?.id ? `ID: ${user.id.slice(0, 8)}...` : 'Active Session'}
-                </div>
+              <div className="text-[#6b7280] text-[9px] font-mono truncate mt-0.5">
+                {user?.id ? `id:${user.id.slice(0, 8)}` : 'session active'}
               </div>
             </div>
           </div>
 
           <button
             onClick={() => void signOut()}
-            className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium text-[#9aa2b1] hover:text-rose-400 hover:bg-rose-950/20 border border-[#222630] hover:border-rose-900/40 transition-colors"
           >
-            <LogOut className="h-3.5 w-3.5" />
+            <LogOut className="h-3 w-3" />
             Sign Out
           </button>
         </div>
@@ -116,17 +114,17 @@ export function AppShell({ children }: AppShellProps) {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header Bar */}
-        <header className="h-14 border-b border-slate-800 bg-slate-900/20 backdrop-blur px-8 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            {/* Project Switcher */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-slate-400">Workspace:</span>
+        <header className="h-11 border-b border-[#222630] bg-[#13161c]/80 backdrop-blur px-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {/* Workspace / Project Selector */}
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-[11px] text-[#6b7280] font-medium">Workspace:</span>
               {projects.length > 0 ? (
                 <div className="relative inline-block">
                   <select
                     value={activeProject?.id || ''}
                     onChange={(e) => setActiveProjectId(e.target.value)}
-                    className="appearance-none bg-slate-800/80 hover:bg-slate-800 text-white font-medium text-xs px-3 py-1.5 pr-8 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                    className="appearance-none bg-[#181b22] hover:bg-[#20242c] text-[#f0f2f5] font-medium text-xs px-2.5 py-1 pr-6 rounded border border-[#2d3340] focus:outline-none focus:border-[#3e4657] cursor-pointer"
                   >
                     {projects.map((p) => (
                       <option key={p.id} value={p.id}>
@@ -134,38 +132,39 @@ export function AppShell({ children }: AppShellProps) {
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="h-3.5 w-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <ChevronDown className="h-3 w-3 text-[#6b7280] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               ) : (
                 <Link
                   href="/projects"
-                  className="text-xs text-indigo-400 hover:underline font-medium"
+                  className="text-xs text-emerald-400 hover:underline font-medium"
                 >
                   Create your first project
                 </Link>
               )}
             </div>
 
-            <div className="hidden md:flex items-center text-xs text-slate-500">
-              <span className="mx-2">•</span>
+            <div className="hidden md:flex items-center text-xs text-[#6b7280]">
+              <span className="mx-1 text-[#2d3340]">/</span>
               <span>
                 API Target:{' '}
-                <span className="font-mono text-[11px] text-slate-400">
+                <span className="font-mono text-[11px] text-[#9aa2b1]">
                   {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}
                 </span>
               </span>
             </div>
           </div>
+
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Engine Online
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-950/40 text-emerald-400 border border-emerald-900/40">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              ENGINE READY
             </span>
           </div>
         </header>
 
         {/* Dynamic page content */}
-        <main className="flex-1 p-8 overflow-y-auto">{children}</main>
+        <main className="flex-1 p-6 overflow-y-auto">{children}</main>
       </div>
     </div>
   );
