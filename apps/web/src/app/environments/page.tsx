@@ -16,6 +16,8 @@ import {
   Key,
   ShieldCheck,
   CheckCircle2,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import type {
   EnvironmentResponse,
@@ -23,6 +25,9 @@ import type {
   UpdateEnvironmentInput,
   EnvironmentVariableInput,
 } from '@replaylab/contracts';
+import { CopyButton } from '@/components/ui/copy-button';
+import { TableSkeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   CreateEnvironmentInputSchema,
   UpdateEnvironmentInputSchema,
@@ -36,6 +41,8 @@ interface FormVariable {
   isExistingSecret?: boolean;
   // User explicitly wants to clear or replace this existing secret
   replaceSecret?: boolean;
+  // Local reveal toggle for unsaved secrets
+  showUnsavedSecret?: boolean;
 }
 
 export default function EnvironmentsPage() {
@@ -296,22 +303,16 @@ export default function EnvironmentsPage() {
               </div>
               <p className="mt-2 text-xs text-amber-200/80 leading-relaxed">{error}</p>
             </div>
+          ) : isLoading ? (
+            <TableSkeleton rows={3} cols={2} />
           ) : environments.length === 0 ? (
-            <div className="rounded border border-[#222630] bg-[#13161c] p-12 text-center">
-              <Server className="h-10 w-10 text-slate-600 mx-auto mb-3" />
-              <h3 className="text-base font-semibold text-white">No environments configured</h3>
-              <p className="text-xs text-[#9aa2b1] mt-1 max-w-sm mx-auto mb-5">
-                Define a target host (e.g. Staging, Preview, Local API Mock) to replay sanitized fixtures.
-              </p>
-              <button
-                type="button"
-                onClick={openCreateModal}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-emerald-500 transition"
-              >
-                <Plus className="h-4 w-4" />
-                Add Environment
-              </button>
-            </div>
+            <EmptyState
+              icon={Server}
+              title="No environments configured"
+              description="Define a target host (e.g. Staging, Preview, Local API Mock) to replay sanitized fixtures."
+              actionLabel="Add Environment"
+              onAction={openCreateModal}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {environments.map((env) => {
@@ -333,6 +334,7 @@ export default function EnvironmentsPage() {
                           <div className="mt-1 flex items-center gap-1.5 text-xs font-mono text-emerald-400 bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-800/40 truncate max-w-sm">
                             <Globe className="h-3 w-3 shrink-0" />
                             <span className="truncate">{env.baseUrl}</span>
+                            <CopyButton value={env.baseUrl} label="target URL" />
                           </div>
                         </div>
 
@@ -392,7 +394,12 @@ export default function EnvironmentsPage() {
                                   <>
                                     <Lock className="h-2.5 w-2.5 text-amber-400" />
                                     <span>{v.key}</span>
-                                    <span className="text-[#6b7280] text-[10px]">[ENCRYPTED]</span>
+                                    <span className="text-amber-400/90 font-mono tracking-widest text-[10px]">
+                                      ••••••••••••
+                                    </span>
+                                    <span className="inline-flex items-center gap-0.5 text-[9px] font-sans font-semibold uppercase px-1 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                                      AES-256-GCM [ENCRYPTED]
+                                    </span>
                                   </>
                                 ) : (
                                   <>
@@ -590,18 +597,44 @@ export default function EnvironmentsPage() {
                                     </button>
                                   </div>
                                 ) : (
-                                  <input
-                                    type={v.isSecret ? 'password' : 'text'}
-                                    value={v.value}
-                                    placeholder={v.isSecret ? 'Enter new secret value' : 'Value'}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      setVariables((prev) =>
-                                        prev.map((item, i) => (i === idx ? { ...item, value: val } : item))
-                                      );
-                                    }}
-                                    className="w-full rounded-md border border-[#2d3340] bg-[#181b22] px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
-                                  />
+                                  <div className="relative flex items-center">
+                                    <input
+                                      type={v.isSecret && !v.showUnsavedSecret ? 'password' : 'text'}
+                                      value={v.value}
+                                      placeholder={v.isSecret ? 'Enter new secret value' : 'Value'}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setVariables((prev) =>
+                                          prev.map((item, i) => (i === idx ? { ...item, value: val } : item))
+                                        );
+                                      }}
+                                      className={`w-full rounded-md border border-[#2d3340] bg-[#181b22] px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none ${
+                                        v.isSecret ? 'pr-8 font-mono' : ''
+                                      }`}
+                                    />
+                                    {v.isSecret && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setVariables((prev) =>
+                                            prev.map((item, i) =>
+                                              i === idx
+                                                ? { ...item, showUnsavedSecret: !item.showUnsavedSecret }
+                                                : item
+                                            )
+                                          );
+                                        }}
+                                        className="absolute right-2 p-1 text-[#6b7280] hover:text-[#9aa2b1] transition"
+                                        title={v.showUnsavedSecret ? 'Hide secret' : 'Show secret'}
+                                      >
+                                        {v.showUnsavedSecret ? (
+                                          <EyeOff className="h-3.5 w-3.5" />
+                                        ) : (
+                                          <Eye className="h-3.5 w-3.5" />
+                                        )}
+                                      </button>
+                                    )}
+                                  </div>
                                 )}
                               </div>
 

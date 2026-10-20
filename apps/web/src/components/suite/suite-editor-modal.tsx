@@ -330,8 +330,11 @@ export function SuiteEditorModal({
                             {fix?.name || `Fixture ${item.fixtureId.slice(0, 8)}`}
                           </span>
                           {fix && (
-                            <span className="font-mono text-[10px] text-[#9aa2b1]">
-                              {fix.request.method} {fix.request.path}
+                            <span className="flex items-center gap-1.5 font-mono text-[10px] text-[#9aa2b1]">
+                              <span className={`method-badge method-${fix.request.method.toLowerCase()}`}>
+                                {fix.request.method}
+                              </span>
+                              <span>{fix.request.path}</span>
                             </span>
                           )}
                         </div>

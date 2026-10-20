@@ -25,6 +25,8 @@ import type {
 import { SuiteEditorModal } from '@/components/suite/suite-editor-modal';
 import { SuiteRunModal } from '@/components/suite/suite-run-modal';
 import { SuiteHistoryDrawer } from '@/components/suite/suite-history-drawer';
+import { CardSkeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export default function SuitesPage() {
   const { activeProject } = useProject();
@@ -120,17 +122,13 @@ export default function SuitesPage() {
           </div>
 
           {!activeProject ? (
-            <div className="rounded border border-[#222630] bg-[#13161c] p-12 text-center">
-              <CheckCircle2 className="h-10 w-10 text-slate-600 mx-auto mb-3" />
-              <h3 className="text-base font-semibold text-white">No active project selected</h3>
-              <p className="text-xs text-[#9aa2b1] mt-1 max-w-sm mx-auto">
-                Please select a project from the top workspace menu to manage regression test suites.
-              </p>
-            </div>
+            <EmptyState
+              icon={CheckCircle2}
+              title="No active project selected"
+              description="Please select a project from the top workspace menu to manage regression test suites."
+            />
           ) : isLoading ? (
-            <div className="flex items-center justify-center p-16">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent" />
-            </div>
+            <CardSkeleton count={4} />
           ) : error ? (
             <div className="rounded border border-amber-500/30 bg-amber-500/10 p-6 text-amber-300">
               <div className="flex items-center gap-2 font-medium text-sm">
@@ -140,24 +138,16 @@ export default function SuitesPage() {
               <p className="mt-2 text-xs text-amber-200/80 leading-relaxed">{error}</p>
             </div>
           ) : suites.length === 0 ? (
-            <div className="rounded border border-[#222630] bg-[#13161c] p-12 text-center">
-              <Layers className="h-10 w-10 text-slate-600 mx-auto mb-3" />
-              <h3 className="text-base font-semibold text-white">No regression suites found</h3>
-              <p className="text-xs text-[#9aa2b1] mt-1 max-w-sm mx-auto mb-5">
-                Group multiple fixtures together into an ordered regression suite with dynamic mask rules to test full user journeys.
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingSuite(null);
-                  setIsEditorOpen(true);
-                }}
-                className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-cyan-500 transition"
-              >
-                <Plus className="h-4 w-4" />
-                Create First Suite
-              </button>
-            </div>
+            <EmptyState
+              icon={Layers}
+              title="No regression suites found"
+              description="Group multiple fixtures together into an ordered regression suite with dynamic mask rules to test full user journeys."
+              actionLabel="Create First Suite"
+              onAction={() => {
+                setEditingSuite(null);
+                setIsEditorOpen(true);
+              }}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {suites.map((suite) => {

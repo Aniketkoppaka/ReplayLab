@@ -15,6 +15,8 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { CreateProjectInputSchema } from '@replaylab/contracts';
+import { CardSkeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export default function ProjectsPage() {
   const {
@@ -199,9 +201,7 @@ export default function ProjectsPage() {
           )}
 
           {isLoading ? (
-            <div className="flex items-center justify-center p-16">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
-            </div>
+            <CardSkeleton count={6} />
           ) : error ? (
             <div className="rounded border border-amber-500/30 bg-amber-500/10 p-6 text-amber-300">
               <div className="flex items-center gap-2 font-medium text-sm">
@@ -211,21 +211,13 @@ export default function ProjectsPage() {
               <p className="mt-2 text-xs text-amber-200/80 leading-relaxed">{error}</p>
             </div>
           ) : projects.length === 0 ? (
-            <div className="rounded border border-[#222630] bg-[#13161c] p-12 text-center">
-              <FolderKanban className="h-10 w-10 text-slate-600 mx-auto mb-3" />
-              <h3 className="text-base font-semibold text-white">No projects found</h3>
-              <p className="text-xs text-[#9aa2b1] mt-1 max-w-sm mx-auto mb-5">
-                Create your first project to start organizing target environments, fixtures, and regression test suites.
-              </p>
-              <button
-                type="button"
-                onClick={() => setIsCreateOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-[#0e1015] px-4 py-2 text-xs font-semibold text-white shadow  transition"
-              >
-                <Plus className="h-4 w-4" />
-                Create Project
-              </button>
-            </div>
+            <EmptyState
+              icon={FolderKanban}
+              title="No projects found"
+              description="Create your first project to start organizing target environments, fixtures, and regression test suites."
+              actionLabel="Create Project"
+              onAction={() => setIsCreateOpen(true)}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {projects.map((p) => {

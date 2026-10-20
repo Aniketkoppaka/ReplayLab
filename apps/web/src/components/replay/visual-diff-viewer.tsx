@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   CheckCircle2,
   AlertTriangle,
@@ -9,6 +9,8 @@ import {
   ShieldAlert,
   FileDiff,
   EyeOff,
+  Columns,
+  Rows,
 } from 'lucide-react';
 import type { ReplayOutcomeStatus } from '@replaylab/contracts';
 
@@ -33,6 +35,7 @@ export interface VisualDiffViewerProps {
   errorMessage?: string | null;
   body?: unknown;
   bodyType?: string | null;
+  durationMs?: number;
 }
 
 export function VisualDiffViewer({
@@ -44,7 +47,10 @@ export function VisualDiffViewer({
   errorMessage,
   body,
   bodyType,
+  durationMs,
 }: VisualDiffViewerProps) {
+  const [layoutMode, setLayoutMode] = useState<'split' | 'unified'>('split');
+
   // Format diff differences if present
   let parsedDiff: DiffResult | null = null;
   if (diffDetails && typeof diffDetails === 'object') {
@@ -96,8 +102,40 @@ export function VisualDiffViewer({
     }
   };
 
+  // Safely compute body size in bytes if present
+  const getBodySizeDisplay = () => {
+    if (body === null || body === undefined) return null;
+    const size = typeof body === 'string' ? new Blob([body]).size : new Blob([JSON.stringify(body)]).size;
+    if (size < 1024) return `${size} B`;
+    return `${(size / 1024).toFixed(1)} KB`;
+  };
+
+  const bodySize = getBodySizeDisplay();
+
   return (
     <div className="space-y-3">
+      {/* Metrics Strip */}
+      {(httpStatusCode !== undefined || durationMs !== undefined || bodySize) && (
+        <div className="flex items-center gap-2 p-2 rounded bg-[#0e1015] border border-[#222630] text-xs font-mono">
+          {httpStatusCode !== undefined && httpStatusCode !== null && (
+            <span className="px-2 py-0.5 rounded bg-[#181b22] text-[#f0f2f5] border border-[#2d3340]">
+              Status: <span className="text-emerald-400 font-bold">{httpStatusCode}</span>
+            </span>
+          )}
+          {durationMs !== undefined && (
+            <span className="px-2 py-0.5 rounded bg-[#181b22] text-[#9aa2b1] border border-[#2d3340] flex items-center gap-1">
+              <Clock className="h-3 w-3 text-[#6b7280]" />
+              {durationMs}ms
+            </span>
+          )}
+          {bodySize && (
+            <span className="px-2 py-0.5 rounded bg-[#181b22] text-[#9aa2b1] border border-[#2d3340]">
+              Size: {bodySize}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* High-Level Comparison Banner */}
       {!diffFound && status === 'SUCCESS' && (
         <div className="flex items-center gap-2.5 p-3 rounded border border-emerald-900/40 bg-emerald-950/20 text-emerald-300">
@@ -187,9 +225,29 @@ export function VisualDiffViewer({
               <FileDiff className="h-3.5 w-3.5 text-amber-400" />
               Structural & Value Differences ({parsedDiff.differences.length})
             </span>
-            <span className="text-[10px] text-[#6b7280] font-mono">
-              Semantic Diff
-            </span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center rounded bg-[#13161c] p-0.5 border border-[#222630]">
+                <button
+                  type="button"
+                  onClick={() => setLayoutMode('split')}
+                  title="Side-by-side comparison"
+                  className={`p-1 rounded text-xs ${layoutMode === 'split' ? 'bg-[#20242c] text-[#f0f2f5]' : 'text-[#6b7280] hover:text-[#f0f2f5]'}`}
+                >
+                  <Columns className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLayoutMode('unified')}
+                  title="Unified comparison"
+                  className={`p-1 rounded text-xs ${layoutMode === 'unified' ? 'bg-[#20242c] text-[#f0f2f5]' : 'text-[#6b7280] hover:text-[#f0f2f5]'}`}
+                >
+                  <Rows className="h-3 w-3" />
+                </button>
+              </div>
+              <span className="text-[10px] text-[#6b7280] font-mono hidden sm:inline">
+                Semantic Diff
+              </span>
+            </div>
           </div>
 
           <div className="divide-y divide-[#222630]">
@@ -202,29 +260,50 @@ export function VisualDiffViewer({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono">
-                  {diff.expected !== undefined && (
-                    <div className="p-2 rounded bg-rose-950/20 border border-rose-900/30">
-                      <span className="text-rose-400 text-[10px] uppercase font-bold block mb-1">
-                        Expected (Baseline)
-                      </span>
-                      <pre className="text-rose-200 overflow-x-auto text-[11px] whitespace-pre-wrap max-h-32">
-                        {formatValue(diff.expected)}
-                      </pre>
-                    </div>
-                  )}
+                {layoutMode === 'split' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono">
+                    {diff.expected !== undefined && (
+                      <div className="p-2 rounded bg-rose-950/20 border border-rose-900/30">
+                        <span className="text-rose-400 text-[10px] uppercase font-bold block mb-1">
+                          Expected (Baseline)
+                        </span>
+                        <pre className="text-rose-200 overflow-x-auto text-[11px] whitespace-pre-wrap max-h-32">
+                          {formatValue(diff.expected)}
+                        </pre>
+                      </div>
+                    )}
 
-                  {diff.actual !== undefined && (
-                    <div className="p-2 rounded bg-emerald-950/20 border border-emerald-900/30">
-                      <span className="text-emerald-400 text-[10px] uppercase font-bold block mb-1">
-                        Actual (Received)
-                      </span>
-                      <pre className="text-emerald-200 overflow-x-auto text-[11px] whitespace-pre-wrap max-h-32">
-                        {formatValue(diff.actual)}
-                      </pre>
-                    </div>
-                  )}
-                </div>
+                    {diff.actual !== undefined && (
+                      <div className="p-2 rounded bg-emerald-950/20 border border-emerald-900/30">
+                        <span className="text-emerald-400 text-[10px] uppercase font-bold block mb-1">
+                          Actual (Received)
+                        </span>
+                        <pre className="text-emerald-200 overflow-x-auto text-[11px] whitespace-pre-wrap max-h-32">
+                          {formatValue(diff.actual)}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 text-xs font-mono">
+                    {diff.expected !== undefined && (
+                      <div className="p-2 rounded bg-rose-950/20 border-l-2 border-rose-500">
+                        <span className="text-rose-400 text-[10px] uppercase font-bold block mb-0.5">- EXPECTED</span>
+                        <pre className="text-rose-200 text-[11px] whitespace-pre-wrap max-h-24 overflow-x-auto">
+                          {formatValue(diff.expected)}
+                        </pre>
+                      </div>
+                    )}
+                    {diff.actual !== undefined && (
+                      <div className="p-2 rounded bg-emerald-950/20 border-l-2 border-emerald-500">
+                        <span className="text-emerald-400 text-[10px] uppercase font-bold block mb-0.5">+ ACTUAL</span>
+                        <pre className="text-emerald-200 text-[11px] whitespace-pre-wrap max-h-24 overflow-x-auto">
+                          {formatValue(diff.actual)}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -17,6 +17,9 @@ import {
   Sparkles,
   ShieldAlert,
   Play,
+  ChevronDown,
+  ChevronRight,
+  Code,
 } from 'lucide-react';
 import type {
   FixtureResponse,
@@ -27,6 +30,9 @@ import type {
   BodyType,
 } from '@replaylab/contracts';
 import { ReplayTriggerModal } from '@/components/replay/replay-trigger-modal';
+import { CopyButton } from '@/components/ui/copy-button';
+import { TableSkeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   CreateFixtureInputSchema,
   UpdateFixtureInputSchema,
@@ -67,6 +73,21 @@ export default function FixturesPage() {
   const [baselineBodyType, setBaselineBodyType] = useState<BodyType>('JSON');
   const [baselineBodyString, setBaselineBodyString] = useState('');
   const [baselineError, setBaselineError] = useState<string | null>(null);
+
+  // Expanded payloads per fixture ID
+  const [expandedPayloadIds, setExpandedPayloadIds] = useState<Set<string>>(new Set());
+
+  const togglePayloadExpand = (id: string) => {
+    setExpandedPayloadIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   const fetchFixtures = useCallback(async () => {
     if (!activeProject) {
@@ -360,17 +381,13 @@ export default function FixturesPage() {
           </div>
 
           {!activeProject ? (
-            <div className="rounded border border-[#222630] bg-[#13161c]/40 p-12 text-center">
-              <FileCode2 className="h-10 w-10 text-slate-600 mx-auto mb-3" />
-              <h3 className="text-base font-semibold text-white">No active project selected</h3>
-              <p className="text-xs text-[#9aa2b1] mt-1 max-w-sm mx-auto">
-                Please create or select a project from the top workspace menu to manage fixtures.
-              </p>
-            </div>
+            <EmptyState
+              icon={FileCode2}
+              title="No active project selected"
+              description="Please create or select a project from the top workspace menu to manage fixtures."
+            />
           ) : isLoading ? (
-            <div className="flex items-center justify-center p-16">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
-            </div>
+            <TableSkeleton rows={4} cols={4} />
           ) : error ? (
             <div className="rounded border border-amber-500/30 bg-amber-500/10 p-6 text-amber-300">
               <div className="flex items-center gap-2 font-medium text-sm">
@@ -380,124 +397,148 @@ export default function FixturesPage() {
               <p className="mt-2 text-xs text-amber-200/80 leading-relaxed">{error}</p>
             </div>
           ) : fixtures.length === 0 ? (
-            <div className="rounded border border-[#222630] bg-[#13161c]/40 p-12 text-center">
-              <FileCode2 className="h-10 w-10 text-slate-600 mx-auto mb-3" />
-              <h3 className="text-base font-semibold text-white">No fixtures found</h3>
-              <p className="text-xs text-[#9aa2b1] mt-1 max-w-sm mx-auto mb-5">
-                Create a fixture with HTTP method, relative path, and expected baseline to start regression testing.
-              </p>
-              <button
-                type="button"
-                onClick={openCreateModal}
-                className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-amber-500 transition"
-              >
-                <Plus className="h-4 w-4" />
-                Create Fixture
-              </button>
-            </div>
+            <EmptyState
+              icon={FileCode2}
+              title="No fixtures found"
+              description="Create a fixture with HTTP method, relative path, and expected baseline to start regression testing."
+              actionLabel="Create Fixture"
+              onAction={openCreateModal}
+            />
           ) : (
             <div className="space-y-4">
               {fixtures.map((fixture) => {
-                const methodColor =
-                  fixture.request.method === 'GET'
-                    ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
-                    : fixture.request.method === 'POST'
-                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                    : fixture.request.method === 'PUT'
-                    ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-                    : fixture.request.method === 'PATCH'
-                    ? 'bg-purple-500/15 text-purple-400 border-purple-500/30'
-                    : 'bg-rose-500/15 text-rose-400 border-rose-500/30';
+                const methodKey = fixture.request.method.toLowerCase();
+                const isExpanded = expandedPayloadIds.has(fixture.id);
+                const hasBody = Boolean(fixture.request.body);
 
                 return (
                   <div
                     key={fixture.id}
-                    className="rounded border border-[#222630] bg-[#13161c]/50 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-[#2d3340] transition"
+                    className="rounded border border-[#222630] bg-[#13161c]/50 p-5 flex flex-col justify-between gap-4 hover:border-[#2d3340] transition"
                   >
-                    <div className="space-y-2 max-w-2xl">
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`font-mono text-xs font-bold px-2.5 py-0.5 rounded border ${methodColor}`}
-                        >
-                          {fixture.request.method}
-                        </span>
-                        <h3 className="text-base font-semibold text-white tracking-tight">
-                          {fixture.name}
-                        </h3>
-                        {fixture.baseline ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                            <CheckCircle2 className="h-3 w-3" />
-                            Baseline Set (HTTP {fixture.baseline.statusCode})
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="space-y-2 max-w-2xl">
+                        <div className="flex items-center gap-3">
+                          <span className={`method-badge method-${methodKey}`}>
+                            {fixture.request.method}
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#6b7280] bg-[#181b22] px-2 py-0.5 rounded-full border border-[#2d3340]">
-                            No Baseline
+                          <h3 className="text-base font-semibold text-white tracking-tight">
+                            {fixture.name}
+                          </h3>
+                          {fixture.baseline ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Baseline Set (HTTP {fixture.baseline.statusCode})
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#6b7280] bg-[#181b22] px-2 py-0.5 rounded-full border border-[#2d3340]">
+                              No Baseline
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 text-xs font-mono text-[#9aa2b1]">
+                          <span className="text-[#6b7280]">Path:</span>
+                          <span className="bg-[#181b22]/80 px-2 py-0.5 rounded border border-[#2d3340]">
+                            {fixture.request.path}
                           </span>
+                          <CopyButton value={fixture.request.path} label="path" />
+                        </div>
+
+                        {fixture.description && (
+                          <p className="text-xs text-[#9aa2b1] line-clamp-1">{fixture.description}</p>
+                        )}
+
+                        {fixture.tags && fixture.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {fixture.tags.map((t) => (
+                              <span
+                                key={t}
+                                className="text-[10px] text-[#9aa2b1] bg-[#181b22] px-2 py-0.5 rounded"
+                              >
+                                #{t}
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2 text-xs font-mono text-[#9aa2b1]">
-                        <span className="text-[#6b7280]">Path:</span>
-                        <span className="bg-[#181b22]/80 px-2 py-0.5 rounded border border-[#2d3340]">
-                          {fixture.request.path}
-                        </span>
+                      <div className="flex items-center gap-2 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-[#222630]">
+                        <button
+                          type="button"
+                          onClick={() => setReplayModalFixture(fixture)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 text-[#0e1015] shadow shadow-indigo-600/20 transition"
+                        >
+                          <Play className="h-3 w-3 fill-current" />
+                          Replay
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => openBaselineModal(fixture)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition"
+                        >
+                          <Layers className="h-3.5 w-3.5" />
+                          Baseline
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(fixture)}
+                          className="p-1.5 text-[#9aa2b1] hover:text-white transition rounded-md hover:bg-[#181b22]"
+                          title="Edit Fixture"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setDeleteConfirmId(fixture.id)}
+                          className="p-1.5 text-[#9aa2b1] hover:text-rose-400 transition rounded-md hover:bg-[#181b22]"
+                          title="Delete Fixture"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
-
-                      {fixture.description && (
-                        <p className="text-xs text-[#9aa2b1] line-clamp-1">{fixture.description}</p>
-                      )}
-
-                      {fixture.tags && fixture.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                          {fixture.tags.map((t) => (
-                            <span
-                              key={t}
-                              className="text-[10px] text-[#9aa2b1] bg-[#181b22] px-2 py-0.5 rounded"
-                            >
-                              #{t}
-                            </span>
-                          ))}
-                        </div>
-                      )}
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-[#222630]">
-                      <button
-                        type="button"
-                        onClick={() => setReplayModalFixture(fixture)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 text-[#0e1015]  shadow shadow-indigo-600/20 transition"
-                      >
-                        <Play className="h-3 w-3 fill-current" />
-                        Replay
-                      </button>
+                    {hasBody && (
+                      <div className="border-t border-[#222630] pt-2 mt-1">
+                        <button
+                          type="button"
+                          onClick={() => togglePayloadExpand(fixture.id)}
+                          className="inline-flex items-center gap-1.5 text-xs text-[#9aa2b1] hover:text-[#f0f2f5] font-mono transition"
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="h-3.5 w-3.5 text-amber-400" />
+                          ) : (
+                            <ChevronRight className="h-3.5 w-3.5 text-[#6b7280]" />
+                          )}
+                          <Code className="h-3.5 w-3.5 text-amber-400/80" />
+                          <span>Request Payload ({fixture.request.bodyType})</span>
+                        </button>
 
-                      <button
-                        type="button"
-                        onClick={() => openBaselineModal(fixture)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition"
-                      >
-                        <Layers className="h-3.5 w-3.5" />
-                        Baseline
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => openEditModal(fixture)}
-                        className="p-1.5 text-[#9aa2b1] hover:text-white transition rounded-md hover:bg-[#181b22]"
-                        title="Edit Fixture"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setDeleteConfirmId(fixture.id)}
-                        className="p-1.5 text-[#9aa2b1] hover:text-rose-400 transition rounded-md hover:bg-[#181b22]"
-                        title="Delete Fixture"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+                        {isExpanded && (
+                          <div className="mt-2 rounded border border-[#222630] bg-[#0e1015] p-3 text-xs font-mono overflow-x-auto relative">
+                            <div className="absolute top-2 right-2">
+                              <CopyButton
+                                value={
+                                  typeof fixture.request.body === 'string'
+                                    ? fixture.request.body
+                                    : JSON.stringify(fixture.request.body, null, 2)
+                                }
+                                label="payload"
+                              />
+                            </div>
+                            <pre className="text-slate-300 whitespace-pre-wrap leading-relaxed pr-10">
+                              {typeof fixture.request.body === 'string'
+                                ? fixture.request.body
+                                : JSON.stringify(fixture.request.body, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

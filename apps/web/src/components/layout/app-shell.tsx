@@ -15,6 +15,7 @@ import {
   LogOut,
   User as UserIcon,
   ChevronDown,
+  ChevronRight,
   Terminal,
 } from 'lucide-react';
 
@@ -41,6 +42,23 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const { projects, activeProject, setActiveProjectId } = useProject();
+
+  const getBreadcrumbs = () => {
+    const currentNav = navItems.find((n) => pathname === n.href || pathname?.startsWith(`${n.href}/`));
+    const items: Array<{ label: string; href?: string }> = [];
+
+    if (activeProject) {
+      items.push({ label: activeProject.name, href: '/projects' });
+    }
+
+    if (currentNav) {
+      items.push({ label: currentNav.name, href: currentNav.href });
+    }
+
+    return items;
+  };
+
+  const breadcrumbs = getBreadcrumbs();
 
   return (
     <div className="flex min-h-screen bg-[#0e1015] text-[#f0f2f5]">
@@ -144,20 +162,29 @@ export function AppShell({ children }: AppShellProps) {
               )}
             </div>
 
-            <div className="hidden md:flex items-center text-xs text-[#6b7280]">
-              <span className="mx-1 text-[#2d3340]">/</span>
-              <span>
-                API Target:{' '}
-                <span className="font-mono text-[11px] text-[#9aa2b1]">
-                  {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}
-                </span>
-              </span>
-            </div>
+            {/* Breadcrumb Trail */}
+            {breadcrumbs.length > 0 && (
+              <div className="hidden sm:flex items-center gap-1.5 text-xs font-mono text-[#6b7280]">
+                <span className="text-[#2d3340]">/</span>
+                {breadcrumbs.map((b, idx) => (
+                  <React.Fragment key={idx}>
+                    {idx > 0 && <ChevronRight className="h-3 w-3 text-[#3e4657]" />}
+                    {b.href && idx < breadcrumbs.length - 1 ? (
+                      <Link href={b.href} className="hover:text-[#9aa2b1] transition">
+                        {b.label}
+                      </Link>
+                    ) : (
+                      <span className="text-[#f0f2f5] font-medium">{b.label}</span>
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-950/40 text-emerald-400 border border-emerald-900/40">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 motion-safe:animate-pulse motion-reduce:animate-none" />
               ENGINE READY
             </span>
           </div>

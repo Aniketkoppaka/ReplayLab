@@ -25,6 +25,8 @@ import type {
 } from '@replaylab/contracts';
 import { VisualDiffViewer } from '@/components/replay/visual-diff-viewer';
 import { ReplayTriggerModal } from '@/components/replay/replay-trigger-modal';
+import { TableSkeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface StoredReplayRunSummary {
   id: string;
@@ -233,13 +235,11 @@ export default function RunsPage() {
           </div>
 
           {!activeProject ? (
-            <div className="rounded border border-[#222630] bg-[#13161c] p-12 text-center">
-              <PlayCircle className="h-10 w-10 text-slate-600 mx-auto mb-3" />
-              <h3 className="text-base font-semibold text-white">No active project selected</h3>
-              <p className="text-xs text-[#9aa2b1] mt-1 max-w-sm mx-auto">
-                Please select a project to view its replay execution history.
-              </p>
-            </div>
+            <EmptyState
+              icon={PlayCircle}
+              title="No active project selected"
+              description="Please select a project to view its replay execution history."
+            />
           ) : (
             <>
               {/* Fixture Filter Bar */}
@@ -277,27 +277,15 @@ export default function RunsPage() {
               )}
 
               {isLoading ? (
-                <div className="flex items-center justify-center p-16">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
-                </div>
+                <TableSkeleton rows={5} cols={7} />
               ) : runs.length === 0 ? (
-                <div className="rounded border border-[#222630] bg-[#13161c] p-12 text-center">
-                  <PlayCircle className="h-10 w-10 text-slate-600 mx-auto mb-3" />
-                  <h3 className="text-base font-semibold text-white">No replay runs recorded</h3>
-                  <p className="text-xs text-[#9aa2b1] mt-1 max-w-sm mx-auto mb-4">
-                    Trigger your first fixture replay against a target environment to see execution results and diff comparisons here.
-                  </p>
-                  {fixtures.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setTriggerModalFixture(fixtures[0] || null)}
-                      className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-[#0e1015] px-4 py-2 text-xs font-semibold text-white shadow  transition"
-                    >
-                      <PlayCircle className="h-3.5 w-3.5" />
-                      Execute First Run
-                    </button>
-                  )}
-                </div>
+                <EmptyState
+                  icon={PlayCircle}
+                  title="No replay runs recorded"
+                  description="Trigger your first fixture replay against a target environment to see execution results and diff comparisons here."
+                  actionLabel={fixtures.length > 0 ? "Execute First Run" : undefined}
+                  onAction={fixtures.length > 0 ? () => setTriggerModalFixture(fixtures[0] || null) : undefined}
+                />
               ) : (
                 <div className="rounded border border-[#222630] bg-[#13161c] overflow-hidden shadow-lg">
                   <div className="overflow-x-auto">
@@ -317,6 +305,7 @@ export default function RunsPage() {
                         {runs.map((run) => {
                           const fix = fixtureMap.get(run.fixtureId);
                           const env = envMap.get(run.environmentId);
+                          const methodKey = fix?.request.method.toLowerCase();
 
                           return (
                             <tr
@@ -332,8 +321,17 @@ export default function RunsPage() {
                                 <div className="font-semibold text-white font-sans">
                                   {fix?.name || `Fixture ${run.fixtureId.slice(0, 8)}`}
                                 </div>
-                                <div className="text-[11px] text-[#9aa2b1] truncate max-w-xs">
-                                  {fix ? `${fix.request.method} ${fix.request.path}` : run.fixtureId}
+                                <div className="text-[11px] text-[#9aa2b1] truncate max-w-xs flex items-center gap-1.5 mt-0.5">
+                                  {fix ? (
+                                    <>
+                                      <span className={`method-badge method-${methodKey}`}>
+                                        {fix.request.method}
+                                      </span>
+                                      <span className="truncate">{fix.request.path}</span>
+                                    </>
+                                  ) : (
+                                    <span>{run.fixtureId}</span>
+                                  )}
                                 </div>
                               </td>
 
@@ -497,6 +495,7 @@ export default function RunsPage() {
                       diffDetails={runDetail.diffDetails}
                       status={runDetail.status}
                       httpStatusCode={runDetail.httpStatusCode}
+                      durationMs={runDetail.durationMs}
                       errorMessage={runDetail.errorMessage}
                       body={runDetail.body}
                       bodyType={runDetail.bodyType}
