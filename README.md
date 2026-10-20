@@ -1,93 +1,171 @@
 # ReplayLab
 
+<div align="center">
+
 [![CI](https://github.com/Aniketkoppaka/ReplayLab/actions/workflows/ci.yml/badge.svg)](https://github.com/Aniketkoppaka/ReplayLab/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-blue?logo=typescript)](https://www.typescriptlang.org/)
-[![Next.js](https://img.shields.io/badge/Next.js-15.5-black?logo=next.js)](https://nextjs.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-22%2B%20%7C%2024%2B-green?logo=node.js)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-15.5-000000?logo=next.js&logoColor=white)](https://nextjs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-22%20%7C%2024-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Prisma](https://img.shields.io/badge/Prisma-6.3-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io/)
 
-**ReplayLab** is an enterprise-grade full-stack API debugging, regression-testing, and fixture playback platform. It enables engineers and QA teams to capture sanitized HTTP request fixtures, replay them against configurable target environments (local, staging, preview, mock), execute deterministic differential comparisons against response baselines, and orchestrate regression test suites.
+**Enterprise-grade API fixture capture, deterministic playback, and differential regression testing engine.**
 
----
+[Live Staging Web UI](https://replay-lab-gilt.vercel.app) • [Staging API](https://replaylab-api-staging.onrender.com) • [Architecture](#architecture) • [Getting Started](#quick-start) • [Security & SSRF](#security--ssrf-defense) • [API Reference](#api-endpoints)
 
-## Live Demo & Environments
-
-- **Staging / Demo Frontend**: [https://replay-lab-gilt.vercel.app](https://replay-lab-gilt.vercel.app)
-- **Staging API**: [https://replaylab-api-staging.onrender.com](https://replaylab-api-staging.onrender.com)
-  - Liveness probe: [`GET /health`](https://replaylab-api-staging.onrender.com/health)
-  - Readiness probe: [`GET /ready`](https://replaylab-api-staging.onrender.com/ready)
-- **Auth & Database Tier**: Supabase PostgreSQL (`cxcgxttvsyfqszfhcjao.supabase.co`)
+</div>
 
 ---
 
-## Key Features
+## Overview
 
-1. **Deterministic Fixture Replay**: Capture HTTP requests (method, path, headers, query params, body) and dispatch them reliably against any target environment with pinned socket connections.
-2. **Differential Comparison Engine**: Compare live replayed responses (status codes, headers, response JSON) against baseline snapshots with fine-grained JSONPath masking rules to eliminate non-deterministic timestamps and UUID flakes.
-3. **SSRF Defensive Protection**: Comprehensive defense-in-depth preventing Server-Side Request Forgery:
-   - Target URL scheme enforcement (`http:`, `https:` only).
-   - Async DNS pre-resolution with comprehensive IP blocklist (RFC 1918 private subnets, loopback `127.0.0.0/8`, CGNAT, AWS/GCP cloud metadata `169.254.169.254`, IPv6 equivalents).
-   - **Pinned IP Agent Sockets**: Custom Node.js HTTP/HTTPS agents connect directly to the pre-validated IP while passing original hostname for SNI, eliminating DNS rebinding TOCTOU vulnerabilities.
-   - Hop-by-hop redirect revalidation, 15s execution timeouts, and 10MB response limits.
-4. **At-Rest Secret Encryption**: Sensitive environment variables are encrypted at rest using AES-256-GCM with unique 12-byte initialization vectors (IVs) and authentication tags before storing in PostgreSQL.
-5. **Strict Multi-Tenant Isolation & 404 Non-Disclosure**: Tenant-scoped resource hierarchy (Project -> Environment / Fixture / Suite -> Run) with non-disclosing 404 responses for unauthorized cross-tenant requests.
-6. **Immutable Baseline History & Audit Logging**: Append-only baseline histories and structured audit logs tracking member additions, deletions, and executions.
+Modern software development relies heavily on third-party APIs, distributed microservices, and webhook lifecycles. When downstream APIs change payloads, update schemas, or suffer regressions, automated tests often fail to catch the breakage until staging or production breaks.
+
+**ReplayLab** solves this by providing:
+- **Sanitized Fixture Capture**: Store full HTTP interactions (methods, paths, query parameters, headers, and request bodies) with automated redaction of sensitive credentials.
+- **Pinned-IP Dispatcher**: Replay requests deterministically against target environments while actively blocking Server-Side Request Forgery (SSRF) and DNS rebinding attacks.
+- **Differential Response Comparison**: Compare status codes, headers, and response payloads against baseline snapshots.
+- **JSONPath Masking**: Eliminate false alarms caused by non-deterministic dynamic fields (timestamps, UUIDs, trace IDs, HMAC signatures).
+- **Regression Suite Orchestration**: Bundle fixtures into executable test suites run sequentially or on demand.
+
+---
+
+## Live Deployments
+
+| Component | Target URL | Status Probe | Details |
+| :--- | :--- | :--- | :--- |
+| **Web Dashboard** | [`https://replay-lab-gilt.vercel.app`](https://replay-lab-gilt.vercel.app) | N/A | Next.js 15 App Router on Vercel |
+| **Replay Engine API** | [`https://replaylab-api-staging.onrender.com`](https://replaylab-api-staging.onrender.com) | [`GET /health`](https://replaylab-api-staging.onrender.com/health) | Express 4 on Render container environment |
+| **Readiness Check** | [`https://replaylab-api-staging.onrender.com/ready`](https://replaylab-api-staging.onrender.com/ready) | `HTTP 200` | Verifies DB pool & 256-bit AES master key |
+| **Identity & Database** | [`https://cxcgxttvsyfqszfhcjao.supabase.co`](https://cxcgxttvsyfqszfhcjao.supabase.co) | Supabase Cloud | Managed PostgreSQL 16 + OIDC JWKS Auth |
 
 ---
 
 ## Architecture
 
-```
-                       +----------------------------------+
-                       |   Next.js 15 App (React 19)      |
-                       |   https://replay-lab-gilt.vercel |
-                       +-----------------+----------------+
-                                         |
-                       Bearer JWT        | (Direct API calls via apiClient)
-                                         v
-+-----------------------+     +-------------------------------+
-|     Supabase Auth     |<----+   Express Backend & Engine    |
-|   JWKS / RS256/ES256  |     |   https://replaylab-api-...   |
-+-----------------------+     +---------------+---------------+
-                                              |
-                     Prisma ORM Client        | Safe Dispatcher (Pinned IP Agent)
-                                              v
-+-----------------------+     +-------------------------------+
-|  Supabase PostgreSQL  |     | Target Environment / Mock API |
-| (AES-256-GCM Secrets) |     |  (SSRF Protected Outbound)    |
-+-----------------------+     +-------------------------------+
+ReplayLab is built as an ultra-strict TypeScript monorepo using `pnpm` workspaces:
+
+```mermaid
+flowchart TD
+    subgraph Client ["Client Tier"]
+        UI["Next.js 15 App Router (React 19, Tailwind)"]
+        Browser["Chrome / Playwright E2E Runner"]
+    end
+
+    subgraph API ["Backend & Engine Tier (Express 4)"]
+        Router["Express API Router (/api/v1)"]
+        AuthMid["JWT Auth Middleware (JWKS / RS256)"]
+        Perm["RBAC Permission Matrix (OWNER/ADMIN/MEMBER)"]
+        Engine["Replay Engine Dispatcher"]
+        Diff["Differential Comparison & Masking Engine"]
+        Crypto["AES-256-GCM Secret Cipher"]
+    end
+
+    subgraph Security ["Defensive Security Tier"]
+        DNS["Async DNS Resolver & IP Range Validator"]
+        Socket["Pinned IP HTTP/HTTPS Agent"]
+    end
+
+    subgraph Persistence ["Data & Identity Tier"]
+        DB[("Supabase PostgreSQL")]
+        Prisma["Prisma ORM (@replaylab/db)"]
+        SupabaseAuth["Supabase OIDC / JWKS Provider"]
+    end
+
+    subgraph Targets ["Target Environments"]
+        TargetAPI["Target API / Mock Server / External Service"]
+    end
+
+    Browser --> UI
+    UI -->|Bearer JWT| Router
+    Router --> AuthMid
+    AuthMid -->|Verify Claims| SupabaseAuth
+    AuthMid --> Perm
+    Perm --> Engine
+    Perm --> Diff
+    Perm --> Prisma
+    Crypto <--> Prisma
+    Prisma --> DB
+    Engine --> DNS
+    DNS -->|Validated IP| Socket
+    Socket -->|Direct TCP/TLS Handshake| TargetAPI
+    TargetAPI -->|Response Stream| Diff
 ```
 
-### Workspace Structure (`pnpm` Monorepo)
+### Workspace Structure
 
-- `apps/web`: Next.js 15 App Router frontend (React 19, Tailwind CSS, Lucide icons).
-- `apps/api`: Express 4 backend and persistent Replay Engine.
-- `packages/contracts`: Shared TypeScript domain models, DTOs, and Zod validation schemas.
-- `packages/db`: Centralized Prisma schema, migrations, and typed Prisma Client wrapper.
-- `packages/config`: Shared tooling configurations (ESLint, TSConfig).
-- `infra/database`: Local database operational compose files and seed scripts.
-- `infra/demo-api`: Deterministic mock API for replay testing.
-- `e2e/`: Synthetic and staging-authenticated Playwright test suites.
+```
+ReplayLab/
+├── apps/
+│   ├── api/                 # Express backend, safe replay dispatcher, AES crypto
+│   └── web/                 # Next.js 15 App Router frontend (React 19, Tailwind CSS)
+├── packages/
+│   ├── contracts/           # Shared domain models, DTO types, and Zod schemas
+│   ├── db/                  # Prisma schema, migrations, and PostgreSQL client
+│   └── config/              # Shared ESLint, Prettier, and TypeScript configurations
+├── infra/
+│   ├── database/            # Local Docker Compose config for PostgreSQL 16
+│   └── demo-api/            # Deterministic mock server for local replay verification
+├── e2e/                     # Synthetic local mock & authenticated staging Playwright journeys
+└── docs/                    # Architectural decision records (ADRs) & threat models
+```
+
+---
+
+## Key Features
+
+### 1. Deterministic Fixture Playback
+- Replay exact HTTP interactions across multiple environments (`local`, `staging`, `preview`, `production`).
+- Support for `NONE`, `JSON`, and `TEXT` body types.
+- Strict payload limits (10MB request/response limit) and enforced socket timeouts (15s maximum execution).
+
+### 2. Differential Comparison & JSONPath Masking
+- Byte-accurate header, status code, and body comparisons.
+- Mask dynamic values using dot-notation or JSONPath (e.g. `user.id`, `meta.timestamp`, `session.token`) to ensure deterministic test runs.
+
+### 3. Comprehensive Anti-SSRF Defense
+Outbound HTTP replay requests present severe security risks if not isolated. ReplayLab enforces:
+- **Strict Scheme Allowlist**: Only `http:` and `https:` schemes allowed.
+- **Pre-Resolution DNS Inspection**: Asynchronously resolves target hostnames and blocks:
+  - RFC 1918 Private ranges (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`)
+  - Loopback (`127.0.0.0/8`, `::1`)
+  - Cloud metadata endpoints (`169.254.169.254`, IPv6 equivalents)
+  - Carrier-grade NAT (`100.64.0.0/10`), link-local, broadcast, and multicast.
+- **Pinned Socket Connections**: Custom Node.js HTTP/HTTPS agents connect directly to the pre-validated IP address while setting TLS SNI to the target hostname. This **eliminates DNS rebinding TOCTOU vulnerabilities**.
+- **Hop-by-Hop Redirect Revalidation**: Redirects are rejected by default or re-evaluated against the IP filter at every hop.
+
+### 4. Cryptographic Secret Protection (AES-256-GCM)
+- Target environment variables (such as `API_KEY` or `BEARER_TOKEN`) marked as secret are encrypted at rest using **AES-256-GCM** with unique 12-byte initialization vectors (IVs) and 16-byte authentication tags.
+- Secrets are masked (`[ENCRYPTED]`) in API responses and decrypted only in-memory during safe request dispatching.
+
+### 5. Multi-Tenant Project Isolation & 404 Non-Disclosure
+- Role-Based Access Control (`OWNER`, `ADMIN`, `MEMBER`, `VIEWER`).
+- Requests attempting to access resources belonging to other tenants fail with a clean `404 Not Found`, completely preventing resource existence enumeration.
 
 ---
 
 ## Technology Stack
 
-- **Frontend**: Next.js 15.5, React 19, Tailwind CSS 4, Lucide React
-- **Backend**: Node.js 22/24, Express 4.21, Zod 3.24
-- **Security & Crypto**: `jose` (JWT/JWKS verification), `node:crypto` (AES-256-GCM)
-- **Database & ORM**: PostgreSQL via Supabase, managed strictly by Prisma 6.3
-- **Testing**: Vitest 3.2 (Unit & Integration), Playwright 1.64 (End-to-End)
-- **Package Manager**: `pnpm@9.15.5` via Corepack
+| Layer | Technology | Details |
+| :--- | :--- | :--- |
+| **Language** | TypeScript 5.7+ | Strict typing across all packages; 0 implicit `any` |
+| **Frontend** | Next.js 15.5, React 19 | App Router, Tailwind CSS 4, Lucide Icons |
+| **Backend** | Node.js 22/24, Express 4.21 | Modular router, fail-closed middleware, async error traps |
+| **Data & ORM** | PostgreSQL 16, Prisma 6.3 | Fully typed database wrapper, migrations, relation integrity |
+| **Validation** | Zod 3.24 | Shared request/response validation schemas (`@replaylab/contracts`) |
+| **Auth & OIDC** | `jose` (v6), Supabase Auth | JWKS asymmetric RS256/ES256 verification + local HS256 fallback |
+| **Testing** | Vitest 3.2, Playwright 1.64 | 229 unit/integration tests + cross-browser E2E suites |
+| **Monorepo** | `pnpm` 9.15.5 | Managed via Corepack; strict workspace dependency links |
 
 ---
 
-## Local Development Quick Start
+## Quick Start
 
 ### Prerequisites
-- Node.js `22.x` or `24.x` (see `.nvmrc`)
-- Corepack enabled (`corepack enable pnpm`)
-- Docker (optional, for local PostgreSQL instance)
+- **Node.js**: `22.x` or `24.x` (LTS; see `.nvmrc`)
+- **Package Manager**: `pnpm@9.15.5` enabled via Corepack (`corepack enable pnpm`)
+- **Docker** *(optional)*: For local PostgreSQL container
 
 ### 1. Clone & Install
 ```bash
@@ -96,112 +174,146 @@ cd ReplayLab
 corepack pnpm install --frozen-lockfile
 ```
 
-### 2. Environment Configuration
-Copy the template to your local environment:
+### 2. Configure Environment
+Copy the example environment configuration:
 ```bash
 cp .env.example .env
 ```
-*(All variables in `.env.example` contain non-sensitive local development defaults and placeholders).*
+The `.env.example` file contains safe development defaults and non-sensitive mock keys.
 
-### 3. Generate Prisma Client & Run Quality Gates
+### 3. Build & Verify Monorepo
 ```bash
-# Generate Prisma Client
+# Generate Prisma Client & compile shared packages
 corepack pnpm --filter @replaylab/db run prisma:generate
-
-# Build shared packages
 corepack pnpm --filter @replaylab/contracts --filter @replaylab/db run build
 
-# Run typecheck & linter
+# Run static quality gates
 corepack pnpm typecheck
 corepack pnpm lint
 
-# Run all unit/integration tests
+# Execute all unit and integration tests
 corepack pnpm test
 ```
 
-### 4. Start Local Development Servers
+### 4. Start Local Development
 ```bash
-# Start backend API (port 3001)
+# Terminal 1: Start Express API server (port 3001)
 corepack pnpm --filter @replaylab/api dev
 
-# Start frontend web app (port 3000)
+# Terminal 2: Start Next.js Web UI (port 3000)
 corepack pnpm --filter @replaylab/web dev
 ```
+Navigate to `http://localhost:3000` to interact with the platform.
 
 ---
 
-## Testing Strategy & Verification
+## Testing & Quality Gates
 
 ReplayLab enforces continuous, evidence-based quality verification across multiple testing tiers:
 
 ```bash
-# 1. Typecheck: Strict zero-warning verification across all workspace projects
+# Typecheck: Strict zero-warning verification across all 5 workspace projects
 pnpm typecheck
 
-# 2. Lint: ESLint across all 5 workspace projects with 0 warnings allowed
+# Lint: ESLint across all packages with 0 warnings allowed
 pnpm lint
 
-# 3. Unit & Integration: 207 tests covering crypto, SSRF IP filtering, comparison engine, etc.
+# Unit & Integration: 207 tests covering crypto, SSRF IP filtering, comparison engine, etc.
 pnpm test
 
-# 4. Local Mock E2E: 7 browser journeys against standalone Next.js server & dev auth
+# Local Mock Playwright E2E: 7 browser user journeys against local mock server
 pnpm test:e2e
 
-# 5. Staging-Authenticated E2E: 7 live tests against deployed Vercel & Render instances
-# Requires dedicated test account in terminal environment:
-# PLAYWRIGHT_STAGING_USER_EMAIL=... PLAYWRIGHT_STAGING_USER_PASSWORD=...
+# Staging-Authenticated Playwright E2E: 7 live tests against deployed Vercel & Render
+# Requires staging test user: PLAYWRIGHT_STAGING_USER_EMAIL=... PLAYWRIGHT_STAGING_USER_PASSWORD=...
 pnpm test:e2e:staging
 
-# 6. Production Build: Full tsc compilation + Next.js optimized production bundle
+# Production Monorepo Build: Full tsc compilation + optimized Next.js 15 bundle
 pnpm build
 ```
 
-> **Note on PostgreSQL Integration Tests**: Two test suites (`postgres-live.test.ts` and `postgres-live-lifecycle.test.ts`, totaling 22 tests) test raw PostgreSQL transaction isolation and lifecycle triggers. In local runs without a live PostgreSQL instance, they are cleanly skipped. In GitHub Actions CI, a PostgreSQL 16 container is automatically provisioned and all 22 tests execute and pass.
+> **Note on Database Tests**: Tests requiring live PostgreSQL connection pool operations (`postgres-live.test.ts` and `postgres-live-lifecycle.test.ts`, totaling 22 tests) run automatically in GitHub Actions CI where PostgreSQL 16 is spun up as a service container. In local development without Docker, they are cleanly skipped.
 
 ---
 
-## Security Design & Defense-in-Depth
+## API Endpoints
 
-| Defensive Layer | Implementation Mechanism | Location |
-| :--- | :--- | :--- |
-| **SSRF Defense** | Async DNS resolution, blocked IP CIDR tables (RFC 1918, 127/8, 169.254/16), pinned socket connections | [`apps/api/src/replay-engine/safe-dispatcher.ts`](file:///c:/Users/anike/Downloads/ReplayLab/apps/api/src/replay-engine/safe-dispatcher.ts) |
-| **Authentication** | Bearer JWT validation via Supabase JWKS (RS256/ES256) or symmetric secret (HS256). Fail-closed token verifier. | [`apps/api/src/auth/token-verifier.ts`](file:///c:/Users/anike/Downloads/ReplayLab/apps/api/src/auth/token-verifier.ts) |
-| **Authorization** | Project membership RBAC (OWNER, ADMIN, MEMBER, VIEWER). Cross-tenant requests return 404 without leaking resource existence. | [`apps/api/src/auth/permission-matrix.ts`](file:///c:/Users/anike/Downloads/ReplayLab/apps/api/src/auth/permission-matrix.ts) |
-| **Secret Encryption** | 256-bit AES-GCM encryption with 12-byte unique IV per secret and authentication tags. | [`apps/api/src/crypto.ts`](file:///c:/Users/anike/Downloads/ReplayLab/apps/api/src/crypto.ts) |
-| **Dev Auth Isolation**| In production (`NODE_ENV === 'production'`), client-side dev authentication is strictly disabled and hidden. | [`apps/web/src/lib/env.ts`](file:///c:/Users/anike/Downloads/ReplayLab/apps/web/src/lib/env.ts) |
-| **Supply Chain** | `pnpm.overrides` pins `postcss` to `^8.5.31`, eliminating known prototype pollution and path traversal CVEs. | [`package.json`](file:///c:/Users/anike/Downloads/ReplayLab/package.json) |
+All endpoints except `/health` and `/ready` require a valid Bearer JWT:
+
+### Health & Readiness Probes
+- `GET /health`: Liveness probe for container orchestrators.
+- `GET /ready`: Readiness probe verifying PostgreSQL connection and 256-bit encryption key length.
+
+### Projects & Members
+- `GET /api/v1/projects`: List active user projects.
+- `POST /api/v1/projects`: Create a new project workspace.
+- `GET /api/v1/projects/:projectId`: Get project details.
+- `PATCH /api/v1/projects/:projectId`: Update project name/settings.
+- `DELETE /api/v1/projects/:projectId`: Delete project and cascade dependent resources.
+- `GET /api/v1/projects/:projectId/members`: List team members and roles.
+- `POST /api/v1/projects/:projectId/members`: Add a user with role (`OWNER`, `ADMIN`, `MEMBER`, `VIEWER`).
+- `DELETE /api/v1/projects/:projectId/members/:memberId`: Remove project member.
+
+### Environments & Secrets
+- `GET /api/v1/projects/:projectId/environments`: List configured target environments.
+- `POST /api/v1/projects/:projectId/environments`: Create environment (e.g. Staging, Preview).
+- `PATCH /api/v1/projects/:projectId/environments/:envId`: Update base URL and variables.
+- `DELETE /api/v1/projects/:projectId/environments/:envId`: Delete environment.
+
+### Fixtures & Baselines
+- `GET /api/v1/projects/:projectId/fixtures`: List saved request fixtures.
+- `POST /api/v1/projects/:projectId/fixtures`: Capture/create an HTTP fixture.
+- `GET /api/v1/projects/:projectId/fixtures/:fixtureId`: Get fixture specification.
+- `POST /api/v1/projects/:projectId/fixtures/:fixtureId/baseline`: Update baseline snapshot.
+- `DELETE /api/v1/projects/:projectId/fixtures/:fixtureId`: Delete fixture.
+
+### Replay Execution & Regression Suites
+- `POST /api/v1/projects/:projectId/replay`: Trigger interactive playback of a fixture against an environment.
+- `GET /api/v1/projects/:projectId/runs`: List replay execution run history.
+- `GET /api/v1/projects/:projectId/runs/:runId`: Inspect detailed run diff and assertion result.
+- `POST /api/v1/projects/:projectId/suites`: Create a regression suite.
+- `POST /api/v1/projects/:projectId/suites/:suiteId/run`: Execute complete regression suite with abort signaling.
 
 ---
 
-## Demo Walkthrough & Capture Checklist
+## Security & SSRF Defense
 
-For showcasing ReplayLab in a portfolio presentation or demo video, follow this verified flow:
+ReplayLab takes a defense-in-depth approach to API replay security:
 
-- [ ] **1. Authentication**:
-  - Visit [https://replay-lab-gilt.vercel.app/login](https://replay-lab-gilt.vercel.app/login)
-  - Sign in with verified Supabase credentials. Notice that in production, Developer Token mode is disabled.
-- [ ] **2. Project & Environment Management**:
-  - Navigate to **Projects** -> Create or select an active project.
-  - Navigate to **Environments** -> Create target environment (e.g. `Staging API` pointing to `https://replaylab-api-staging.onrender.com/api/v1`).
-- [ ] **3. Fixture Creation**:
-  - Create a fixture with `GET /status/200`, `bodyType: NONE`.
-  - Set baseline expectation to HTTP `200`.
-- [ ] **4. Interactive Fixture Playback (Positive Replay)**:
-  - Open the **Interactive Fixture Replay** modal.
-  - Trigger replay against the target environment.
-  - Observe execution badge **`SUCCESS`**, exact status **`HTTP 200`**, and 100% differential baseline match.
-- [ ] **5. Negative Assertion / Differential Mismatch**:
-  - Edit baseline expectation to expect HTTP `400`.
-  - Re-trigger playback against the same endpoint.
-  - Observe execution badge **`ASSERTION_FAILURE`**, indicating deterministic mismatch detection.
-- [ ] **6. Regression Suite & History**:
-  - Add the fixture to a Regression Test Suite and inspect execution runs in the **Runs** history view.
+```
++----------------------------------------------------------------------------------+
+|                            SAFE DISPATCHER PIPELINE                              |
++----------------------------------------------------------------------------------+
+| 1. URL Scheme Check      -> Must strictly be 'http:' or 'https:'                 |
+| 2. Async DNS Resolution  -> Resolves host via OS/custom DNS lookup               |
+| 3. IP Blocklist Filter   -> Blocks RFC1918, 127/8, 169.254/16, CGNAT, IPv6 loopback |
+| 4. Socket Pinning        -> Net/TLS socket connects directly to validated IP     |
+| 5. TLS ServerName        -> Sets SNI to original hostname for valid cert checks |
+| 6. Payload Limits        -> Rejects outbound bodies > 10MB; stream caps on read  |
+| 7. Execution Timeouts    -> 3s connect timeout, 15s overall execution timeout    |
++----------------------------------------------------------------------------------+
+```
 
 ---
 
-## Known Limitations
+## Demo Walkthrough Checklist
 
-1. **Portfolio Demo Scope**: This project is built, hardened, and deployed as a portfolio showcase and demonstration platform. It is not configured for commercial multi-tenant SaaS operations or public end-user signups.
-2. **Shared Staging Database**: The demo environment runs against a single Supabase staging instance with automated daily backups. Production customer isolation and Point-in-Time Recovery (PITR) SLA management have not been provisioned.
-3. **Internal Prisma CLI Sub-Dependency**: `pnpm audit --prod` reports 1 advisory in `deepmerge-ts@7.1.5` via `@prisma/config` (bundled within `prisma@6.19.3` CLI tooling). This does not affect runtime application artifacts or server request handlers.
-4. **Local Database Test Prerequisite**: Raw PostgreSQL integration tests (`postgres-live.test.ts`) require a local PostgreSQL container and are skipped in local environments without Docker. They are fully verified in CI.
+To demonstrate ReplayLab live:
+1. **Sign In**: Navigate to [https://replay-lab-gilt.vercel.app/login](https://replay-lab-gilt.vercel.app/login) and sign in.
+2. **Project Selection**: Select or create an active project.
+3. **Environment Setup**: Add an environment (e.g. `Staging API` pointing to `https://replaylab-api-staging.onrender.com/api/v1`).
+4. **Fixture Capture**: Add a fixture (`GET /status/200`) with baseline status `200`.
+5. **Interactive Replay**:
+   - Trigger playback.
+   - Verify execution badge **`SUCCESS`**, exact status **`HTTP 200`**, and 100% differential baseline match.
+6. **Negative Assertion**:
+   - Edit baseline to expect `400`.
+   - Re-run playback to observe immediate, deterministic **`ASSERTION_FAILURE`** detection.
+
+---
+
+## Contributing & License
+
+Contributions, bug reports, and suggestions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md) before submitting pull requests.
+
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
