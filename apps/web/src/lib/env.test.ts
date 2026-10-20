@@ -54,4 +54,112 @@ describe('Public Environment Schema & Secrets Protection', () => {
     const env = getPublicEnv();
     expect(env.enableDevAuth).toBe(false);
   });
+
+  describe('Fail-closed production development authentication gates', () => {
+    it('production + variable missing => disabled when Supabase is configured', () => {
+      Object.defineProperty(process.env, 'NODE_ENV', {
+        value: 'production',
+        configurable: true,
+        writable: true,
+      });
+      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://prod.supabase.co';
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'prod-anon-key';
+      delete process.env.NEXT_PUBLIC_ENABLE_DEV_AUTH;
+
+      const env = getPublicEnv();
+      expect(env.enableDevAuth).toBe(false);
+    });
+
+    it('production + variable explicitly false => disabled', () => {
+      Object.defineProperty(process.env, 'NODE_ENV', {
+        value: 'production',
+        configurable: true,
+        writable: true,
+      });
+      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://prod.supabase.co';
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'prod-anon-key';
+      process.env.NEXT_PUBLIC_ENABLE_DEV_AUTH = 'false';
+
+      const env = getPublicEnv();
+      expect(env.enableDevAuth).toBe(false);
+    });
+
+    it('production + invalid variable value => disabled when Supabase is configured', () => {
+      Object.defineProperty(process.env, 'NODE_ENV', {
+        value: 'production',
+        configurable: true,
+        writable: true,
+      });
+      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://prod.supabase.co';
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'prod-anon-key';
+      process.env.NEXT_PUBLIC_ENABLE_DEV_AUTH = 'invalid_val';
+
+      const env = getPublicEnv();
+      expect(env.enableDevAuth).toBe(false);
+    });
+
+    it('production + variable explicitly true => enabled (explicit opt-in override)', () => {
+      Object.defineProperty(process.env, 'NODE_ENV', {
+        value: 'production',
+        configurable: true,
+        writable: true,
+      });
+      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://prod.supabase.co';
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'prod-anon-key';
+      process.env.NEXT_PUBLIC_ENABLE_DEV_AUTH = 'true';
+
+      const env = getPublicEnv();
+      expect(env.enableDevAuth).toBe(true);
+    });
+
+    it('production build without Supabase configured => enabled for offline demo/E2E by default', () => {
+      Object.defineProperty(process.env, 'NODE_ENV', {
+        value: 'production',
+        configurable: true,
+        writable: true,
+      });
+      delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+      delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      delete process.env.NEXT_PUBLIC_ENABLE_DEV_AUTH;
+
+      const env = getPublicEnv();
+      expect(env.enableDevAuth).toBe(true);
+    });
+
+    it('local development with variable missing => enabled by default for offline dev', () => {
+      Object.defineProperty(process.env, 'NODE_ENV', {
+        value: 'development',
+        configurable: true,
+        writable: true,
+      });
+      delete process.env.NEXT_PUBLIC_ENABLE_DEV_AUTH;
+
+      const env = getPublicEnv();
+      expect(env.enableDevAuth).toBe(true);
+    });
+
+    it('local development with intended opt-in => enabled', () => {
+      Object.defineProperty(process.env, 'NODE_ENV', {
+        value: 'development',
+        configurable: true,
+        writable: true,
+      });
+      process.env.NEXT_PUBLIC_ENABLE_DEV_AUTH = 'true';
+
+      const env = getPublicEnv();
+      expect(env.enableDevAuth).toBe(true);
+    });
+
+    it('local development with explicit opt-out => disabled', () => {
+      Object.defineProperty(process.env, 'NODE_ENV', {
+        value: 'development',
+        configurable: true,
+        writable: true,
+      });
+      process.env.NEXT_PUBLIC_ENABLE_DEV_AUTH = 'false';
+
+      const env = getPublicEnv();
+      expect(env.enableDevAuth).toBe(false);
+    });
+  });
 });
